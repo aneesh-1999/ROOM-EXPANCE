@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Shared roommate expenses collection
+    match /expenses/{expenseId} {
+      allow read, write: if true;
+    }
+
+    // Roommate security profiles
+    match /profiles/{profileId} {
+      allow read, write: if true;
+    }
+  }
+}

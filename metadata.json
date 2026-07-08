@@ -1,0 +1,6 @@
+{
+  "name": "Roommate Expense Tracker",
+  "description": "A mobile-friendly roommate expense tracker for Ozric and Pawan, featuring direct coin meter logging, flexible splits, and instant sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

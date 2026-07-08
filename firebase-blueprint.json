@@ -1,0 +1,127 @@
+{
+  "entities": {
+    "Expense": {
+      "title": "Expense",
+      "description": "An expense entry representing a shared cohabitation cost or payment ledger item.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "A brief description/title of the expense."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The total Euro amount of the expense."
+        },
+        "paidBy": {
+          "type": "string",
+          "enum": ["Ozric", "Pawan"],
+          "description": "The roommate who initially paid for the expense."
+        },
+        "splitType": {
+          "type": "string",
+          "enum": ["50/50", "custom", "itemized"],
+          "description": "How the cost is divided between roommates."
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "Shared Groceries",
+            "Household Supplies",
+            "Rent",
+            "Electricity (Coins)",
+            "Internet/Wi-Fi",
+            "Takeout/Delivery",
+            "Other"
+          ],
+          "description": "The expense category classification."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server-generated timestamp when the expense was logged."
+        },
+        "splitDetails": {
+          "type": "object",
+          "properties": {
+            "OzricAmount": {
+              "type": "number"
+            },
+            "PawanAmount": {
+              "type": "number"
+            }
+          },
+          "required": ["OzricAmount", "PawanAmount"]
+        },
+        "isCoin": {
+          "type": "boolean",
+          "description": "Whether this log is for physical electricity meter coin insertion."
+        },
+        "isSettlement": {
+          "type": "boolean",
+          "description": "Whether this is a settle-up balance transfer entry."
+        },
+        "isLendBorrow": {
+          "type": "boolean",
+          "description": "Whether this is a lend/borrow direct cash or transfer entry."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["Cash", "Revolut", "Bank Transfer"],
+          "description": "The transfer mode used for the lend/borrow transaction."
+        },
+        "itemizedDetails": {
+          "type": "object",
+          "properties": {
+            "personalUser": {
+              "type": "string",
+              "enum": ["Ozric", "Pawan"]
+            },
+            "personalAmount": {
+              "type": "number"
+            }
+          },
+          "required": ["personalUser", "personalAmount"]
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional custom notes or comments."
+        }
+      },
+      "required": ["title", "amount", "paidBy", "splitType", "category", "splitDetails"]
+    },
+    "Profile": {
+      "title": "Profile",
+      "description": "Roommate security profile storing encrypted or hashed password and custom preferences.",
+      "type": "object",
+      "properties": {
+        "password": {
+          "type": "string",
+          "description": "The password used to access and secure this profile."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "nickname": {
+          "type": "string"
+        }
+      },
+      "required": ["password"]
+    }
+  },
+  "firestore": {
+    "expenses": {
+      "schema": {
+        "$ref": "#/entities/Expense"
+      },
+      "description": "The primary collection storing all ledger items, electricity coin logs, and settlements."
+    },
+    "profiles": {
+      "schema": {
+        "$ref": "#/entities/Profile"
+      },
+      "description": "Security profiles for Ozric and Pawan."
+    }
+  }
+}
