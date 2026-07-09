@@ -34,7 +34,9 @@ import {
   Tag,
   CheckCircle,
   BellRing,
-  Send
+  Send,
+  Copy,
+  Download
 } from 'lucide-react';
 import { 
   getDiscordSettings, 
@@ -54,7 +56,9 @@ interface AdminPanelModalProps {
 
 type AdminTab = 'ledger' | 'profiles' | 'discord' | 'security' | 'maintenance';
 
-export default function AdminPanelModal({ expenses, currentUser, onClose, onRefreshNicknames, isStandalone = false }: AdminPanelModalProps) {
+export default function AdminPanelModal({ expenses, currentUser: propCurrentUser, onClose, onRefreshNicknames, isStandalone = false }: AdminPanelModalProps) {
+  const currentUser = isStandalone ? 'Ozric' : propCurrentUser;
+  const isSuperAdmin = currentUser === 'Ozric';
   const [activeTab, setActiveTab] = useState<AdminTab>('ledger');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -68,6 +72,11 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
   // Profiles
   const [ozricProfile, setOzricProfile] = useState<Profile | null>(null);
   const [pawanProfile, setPawanProfile] = useState<Profile | null>(null);
+  const [adminProfile, setAdminProfile] = useState<any>(null);
+  const [adminNewPass, setAdminNewPass] = useState('');
+  const [showAdminPass, setShowAdminPass] = useState(false);
+  const [isGeneratingCodes, setIsGeneratingCodes] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Security Audit Log & Controls State
   const [loginLogs, setLoginLogs] = useState<LoginLog[]>([]);
@@ -152,6 +161,7 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
       try {
         const ozricData = await getProfile('Ozric');
         const pawanData = await getProfile('Pawan');
+        const adminData = await getProfile('admin');
         const discSettings = await getDiscordSettings();
 
         if (ozricData) {
@@ -163,6 +173,9 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
           setPawanProfile(pawanData);
           setPawanNick(pawanData.nickname || 'Pawan');
           setPawanPass(pawanData.password || '1234');
+        }
+        if (adminData) {
+          setAdminProfile(adminData);
         }
         if (discSettings) {
           setDiscordSettings(discSettings);
@@ -395,6 +408,103 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
       case 'Rent': return 'bg-rose-100 text-rose-800 border-rose-300';
       default: return 'bg-slate-100 text-slate-800 border-slate-300';
     }
+  };
+
+  // Admin Self-Service credentials updates
+  const handleAdminPasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminNewPass.length < 4) {
+      setErrorMsg('Admin password must be at least 4 characters long.');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await updateProfile('admin', { password: adminNewPass }, 'Super Admin (Self)');
+      setSuccessMsg('Successfully updated Super Admin passcode!');
+      setAdminNewPass('');
+      // Reload updated profile
+      const updated = await getProfile('admin');
+      setAdminProfile(updated);
+    } catch (err: any) {
+      setErrorMsg('Failed to update admin password: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleGenerateRecoveryCodes = async () => {
+    setActionLoading(true);
+    setIsGeneratingCodes(true);
+    try {
+      const generateRandomCode = () => {
+        const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        let p1 = '';
+        let p2 = '';
+        for (let i = 0; i < 4; i++) {
+          p1 += chars.charAt(Math.floor(Math.random() * chars.length));
+          p2 += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return `${p1}-${p2}`;
+      };
+
+      const newCodes: string[] = [];
+      for (let i = 0; i < 10; i++) {
+        newCodes.push(generateRandomCode());
+      }
+      await updateProfile('admin', { recoveryCodes: newCodes }, 'Super Admin (Self)');
+      const updated = await getProfile('admin');
+      setAdminProfile(updated);
+      setSuccessMsg('Successfully generated 10 fresh emergency recovery codes! Copy them below.');
+    } catch (err: any) {
+      setErrorMsg('Failed to generate recovery codes: ' + err.message);
+    } finally {
+      setActionLoading(false);
+      setIsGeneratingCodes(false);
+    }
+  };
+
+  const handleDownloadAllCodes = () => {
+    const codes: string[] = adminProfile?.recoveryCodes || [];
+    if (codes.length === 0) return;
+    
+    const content = `Super Admin Emergency Offline Recovery Keys
+===========================================
+Generated on: ${new Date().toLocaleString()}
+
+Active Keys:
+${codes.map((code, idx) => `${idx + 1}. ${code}`).join('\n')}
+
+Warning: Keep these keys completely offline and secure.
+Each key can be used exactly once to reset the administrator passcode.
+Upon successful use, the specific token will be permanently de-authorized.`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'admin-all-recovery-keys.txt');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadSingleCode = (code: string) => {
+    const content = `Super Admin Single Recovery Key
+-------------------------------
+Recovery Key: ${code}
+Status: Active, One-Time Use Only.
+Generated on: ${new Date().toLocaleString()}
+
+Warning: Save this securely offline. This code will be burned forever upon usage.`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `admin-recovery-code-${code}.txt`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -858,7 +968,7 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
                       <BellRing className="w-4 h-4 text-blue-650" />
                       Discord Push Notifications Engine
                     </h4>
-                    {currentUser !== 'Ozric' ? (
+                    {!isSuperAdmin ? (
                       <span className="text-[9px] font-black uppercase bg-rose-100 text-rose-800 border-2 border-rose-400 px-2.5 py-1 rounded-xl font-mono flex items-center gap-1">
                         <Lock className="w-3 h-3" /> READ-ONLY ACCESS
                       </span>
@@ -869,12 +979,12 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
                     )}
                   </div>
 
-                  {currentUser !== 'Ozric' && (
+                  {!isSuperAdmin && (
                     <div className="bg-amber-50 border-2 border-amber-300 text-amber-900 text-xs rounded-2xl p-4 flex items-start gap-2.5 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] font-bold">
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
                       <div>
                         <p>Permission Level Restrained</p>
-                        <p className="text-[10px] text-amber-700 font-medium mt-0.5 font-mono">Only the Super Admin (Ozric) is authorized to modify Discord push notification webhooks and preferences. You can view the current configuration below in Read-Only mode.</p>
+                        <p className="text-[10px] text-amber-700 font-medium mt-0.5 font-mono">Only a Super Admin is authorized to modify Discord push notification webhooks and preferences. You can view the current configuration below in Read-Only mode.</p>
                       </div>
                     </div>
                   )}
@@ -1646,6 +1756,130 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
                           );
                         });
                       })()}
+                    </div>
+                  </div>
+
+                  {/* SUPER ADMIN VAULT SELF-SERVICE CREDENTIALS & RECOVERY */}
+                  <div className="border-3 border-slate-900 rounded-2xl p-5 bg-amber-50/10 space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-950 font-mono flex items-center gap-1.5 border-b-2 border-slate-200 pb-2">
+                      <ShieldAlert className="w-4 h-4 text-amber-600" />
+                      Super Admin Credentials & Recovery Vault
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* PASSWORD MANAGEMENT */}
+                      <div className="border-2 border-slate-900 rounded-xl p-4 bg-white space-y-3 flex flex-col justify-between">
+                        <div className="space-y-2">
+                          <h5 className="text-xs font-black uppercase text-slate-900 font-mono flex items-center gap-1.5">
+                            <Lock className="w-3.5 h-3.5 text-indigo-650" />
+                            Update Admin Passcode
+                          </h5>
+                          <form onSubmit={handleAdminPasswordChange} className="space-y-2 pt-1.5">
+                            <div className="relative">
+                              <input
+                                id="admin-panel-new-pass"
+                                type={showAdminPass ? 'text' : 'password'}
+                                placeholder="Enter new passcode"
+                                value={adminNewPass}
+                                onChange={(e) => setAdminNewPass(e.target.value)}
+                                className="w-full px-3 py-2 text-xs font-mono border-2 border-slate-900 rounded-lg bg-white"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowAdminPass(!showAdminPass)}
+                                className="absolute right-2 top-2 p-1 text-slate-400 hover:text-slate-800"
+                              >
+                                {showAdminPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                            <button
+                              type="submit"
+                              disabled={actionLoading || !adminNewPass}
+                              className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-wide border-2 border-slate-900 rounded-lg shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer"
+                            >
+                              Commit New Passcode
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+
+                      {/* EMERGENCY RECOVERY KEYS */}
+                      <div className="border-2 border-slate-900 rounded-xl p-4 bg-white space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-0.5">
+                            <h5 className="text-xs font-black uppercase text-slate-900 font-mono flex items-center gap-1.5">
+                              <Key className="w-3.5 h-3.5 text-amber-500" />
+                              Offline Recovery Keys
+                            </h5>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleGenerateRecoveryCodes}
+                            disabled={actionLoading || isGeneratingCodes}
+                            className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-slate-900 rounded-lg text-[9px] font-mono font-bold uppercase cursor-pointer flex items-center justify-center"
+                            title="Regenerate all recovery keys"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isGeneratingCodes ? 'animate-spin' : ''}`} />
+                          </button>
+                        </div>
+
+                        {adminProfile?.recoveryCodes && adminProfile.recoveryCodes.length > 0 ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-1.5 max-h-[140px] overflow-y-auto pr-0.5 font-mono text-[9px] font-bold">
+                              {adminProfile.recoveryCodes.map((code: string, idx: number) => {
+                                const isCopied = copiedCode === code;
+                                return (
+                                  <div
+                                    key={idx}
+                                    className="border border-slate-300 rounded px-2 py-1 bg-slate-50 flex items-center justify-between transition-colors"
+                                  >
+                                    <span className="text-slate-850 select-all font-mono font-black">{code}</span>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(code);
+                                          setCopiedCode(code);
+                                          setTimeout(() => setCopiedCode(null), 2000);
+                                        }}
+                                        className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-indigo-650 transition-colors"
+                                        title="Copy token to clipboard"
+                                      >
+                                        {isCopied ? (
+                                          <Check className="w-3 h-3 text-emerald-600" />
+                                        ) : (
+                                          <Copy className="w-3 h-3" />
+                                        )}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDownloadSingleCode(code)}
+                                        className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-emerald-600 transition-colors"
+                                        title="Download token as file"
+                                      >
+                                        <Download className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            
+                            <button
+                              type="button"
+                              onClick={handleDownloadAllCodes}
+                              className="w-full py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 text-[10px] font-black uppercase tracking-wide border-2 border-slate-900 rounded-lg shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <Download className="w-3.5 h-3.5 text-emerald-700" />
+                              Download All Keys (.txt)
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 border-2 border-dashed border-slate-200 bg-slate-50 rounded-lg">
+                            <p className="text-[10px] text-slate-500 font-mono">No active emergency tokens found. Click regenerate icon above.</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 

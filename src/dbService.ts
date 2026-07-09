@@ -368,27 +368,28 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 // Fetch security profile for a roommate (or initialize with defaults)
-export async function getProfile(id: Roommate): Promise<Profile> {
+export async function getProfile(id: Roommate | 'admin'): Promise<any> {
   try {
     const docRef = doc(db, PROFILES_COLLECTION, id);
     const docSnap = await getDoc(docRef);
-    const defaultPasswordHash = await hashPassword('1234');
+    const defaultPassword = '1234';
+    const defaultPasswordHash = await hashPassword(defaultPassword);
 
     if (docSnap.exists()) {
       const data = docSnap.data();
       // Auto-hash password in database if it is in plain text
-      let dbPassword = data.password || '1234';
+      let dbPassword = data.password || defaultPassword;
       if (!/^[a-f0-9]{64}$/i.test(dbPassword)) {
         dbPassword = await hashPassword(dbPassword);
         await setDoc(docRef, { password: dbPassword }, { merge: true });
       }
 
-      return {
+      const prof: any = {
         id,
         password: dbPassword,
-        nickname: data.nickname || id,
-        avatar: data.avatar || (id === 'Ozric' ? '🐼' : '🦊'),
-        accentColor: data.accentColor || (id === 'Ozric' ? 'indigo' : 'rose'),
+        nickname: data.nickname || (id === 'admin' ? 'Super Admin' : id),
+        avatar: data.avatar || (id === 'Ozric' ? '🐼' : id === 'admin' ? '👮' : '🦊'),
+        accentColor: data.accentColor || (id === 'Ozric' ? 'indigo' : id === 'admin' ? 'amber' : 'rose'),
         monthlyBudget: data.monthlyBudget || undefined,
         preferredPaymentMethod: data.preferredPaymentMethod || 'Revolut',
         quickCoinCategory: data.quickCoinCategory || 'Electricity (Coins)',
@@ -401,13 +402,24 @@ export async function getProfile(id: Roommate): Promise<Profile> {
         recoveryRequest: data.recoveryRequest || null,
         updatedAt: data.updatedAt
       };
+
+      if (id === 'admin') {
+        prof.email = data.email || 'work.anishdallakoti@gmail.com';
+        prof.recoveryCodes = data.recoveryCodes || [
+          'A7F2-92KD', 'KQ91-HS73', '91DF-JK82', 'M4B8-NX10',
+          'H2K5-L793', 'F1D0-P385', 'W9Y6-R542', 'C8V4-X291',
+          'J5E3-T746', 'S8G9-K312'
+        ];
+      }
+
+      return prof;
     } else {
       // Initialize in database with secure hash
-      const defaultProfile = {
+      const defaultProfile: any = {
         password: defaultPasswordHash,
-        nickname: id,
-        avatar: id === 'Ozric' ? '🐼' : '🦊',
-        accentColor: id === 'Ozric' ? 'indigo' : 'rose',
+        nickname: id === 'admin' ? 'Super Admin' : id,
+        avatar: id === 'Ozric' ? '🐼' : id === 'admin' ? '👮' : '🦊',
+        accentColor: id === 'Ozric' ? 'indigo' : id === 'admin' ? 'amber' : 'rose',
         preferredPaymentMethod: 'Revolut',
         quickCoinCategory: 'Electricity (Coins)',
         phone: '',
@@ -419,22 +431,21 @@ export async function getProfile(id: Roommate): Promise<Profile> {
         recoveryRequest: null,
         updatedAt: serverTimestamp()
       };
+
+      if (id === 'admin') {
+        defaultProfile.email = 'work.anishdallakoti@gmail.com';
+        defaultProfile.recoveryCodes = [
+          'A7F2-92KD', 'KQ91-HS73', '91DF-JK82', 'M4B8-NX10',
+          'H2K5-L793', 'F1D0-P385', 'W9Y6-R542', 'C8V4-X291',
+          'J5E3-T746', 'S8G9-K312'
+        ];
+      }
+
       await setDoc(docRef, defaultProfile);
       return {
         id,
-        password: defaultPasswordHash,
-        nickname: id,
-        avatar: id === 'Ozric' ? '🐼' : '🦊',
-        accentColor: id === 'Ozric' ? 'indigo' : 'rose',
-        preferredPaymentMethod: 'Revolut',
-        quickCoinCategory: 'Electricity (Coins)',
-        phone: '',
-        failedAttemptsCount: 0,
-        lockoutType: 'none',
-        lockedUntil: null,
-        permanentLock: false,
-        manualLocked: false,
-        recoveryRequest: null
+        ...defaultProfile,
+        updatedAt: undefined
       };
     }
   } catch (error) {
@@ -442,8 +453,8 @@ export async function getProfile(id: Roommate): Promise<Profile> {
   }
 }
 
-// Update security profile for a roommate
-export async function updateProfile(id: Roommate, updates: Partial<Omit<Profile, 'id'>>, actor?: string) {
+// Update security profile for a roommate or admin
+export async function updateProfile(id: Roommate | 'admin', updates: Partial<Omit<Profile, 'id'>> & { email?: string; recoveryCodes?: string[] }, actor?: string) {
   try {
     const docRef = doc(db, PROFILES_COLLECTION, id);
     const cleanUpdates: any = {};
@@ -468,17 +479,17 @@ export async function updateProfile(id: Roommate, updates: Partial<Omit<Profile,
     if (updates.password !== undefined) {
       sendDiscordNotification('passwordSecurityChanges', {
         title: `🔐 Passcode Security Alteration`,
-        description: `A hashed passcode modification has been recorded for roommate profile "${id}".`,
+        description: `A hashed passcode modification has been recorded for roommate/admin profile "${id}".`,
         category: 'security',
         color: 15570220, // orange #ED8936
         fields: [
-          { name: 'Roommate Profile', value: id, inline: true },
+          { name: 'Roommate/Admin Profile', value: id, inline: true },
           { name: 'Modified By', value: actor || id, inline: true }
         ]
       }, actor);
     }
 
-    if (updates.nickname !== undefined || updates.avatar !== undefined || updates.accentColor !== undefined || updates.monthlyBudget !== undefined) {
+    if (id !== 'admin' && (updates.nickname !== undefined || updates.avatar !== undefined || updates.accentColor !== undefined || updates.monthlyBudget !== undefined)) {
       sendDiscordNotification('settingsChanges', {
         title: `⚙️ Profile Customization Updated`,
         description: `Custom avatar, nickname, budget limit, or color preference saved for profile "${id}".`,
