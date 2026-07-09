@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Roommate, Expense, Profile } from './types';
-import { subscribeExpenses, getProfile } from './dbService';
+import { subscribeExpenses, getProfile, updateLoginLogLogout } from './dbService';
 import { sendDiscordNotification } from './discordService';
 import UserSelector from './components/UserSelector';
 import Dashboard from './components/Dashboard';
@@ -97,6 +97,17 @@ export default function App() {
   };
 
   const handleLockUser = (user: Roommate) => {
+    // Session Duration calculation
+    const logDocId = sessionStorage.getItem('login_log_doc_id');
+    const loginTime = sessionStorage.getItem('login_time');
+    if (logDocId && loginTime) {
+      const durationSeconds = Math.floor((Date.now() - Number(loginTime)) / 1000);
+      updateLoginLogLogout(logDocId, durationSeconds).catch(err => console.error("Error logging session duration:", err));
+      sessionStorage.removeItem('login_log_doc_id');
+      sessionStorage.removeItem('login_time');
+      sessionStorage.removeItem('current_session_id');
+    }
+
     sendDiscordNotification('userLoginLogout', {
       title: `🔒 Profile Session Locked`,
       description: `${user} has locked their roommate profile.`,

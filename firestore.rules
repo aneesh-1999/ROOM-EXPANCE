@@ -35,5 +35,11 @@ service cloud.firestore {
     match /discord_settings/{settingsId} {
       allow read, write: if true;
     }
+
+    // Login Activity Logs
+    match /login_logs/{logId} {
+      allow read, create, update: if true;
+      allow delete: if false;
+    }
   }
 }

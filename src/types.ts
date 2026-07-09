@@ -57,6 +57,44 @@ export interface Profile {
   quickCoinCategory?: Category;
   phone?: string;
   updatedAt?: any;
+  failedAttemptsCount?: number;
+  lockoutType?: 'none' | 'temporary_10' | 'temporary_30' | 'permanent';
+  lockedUntil?: any;
+  permanentLock?: boolean;
+  manualLocked?: boolean;
+  recoveryRequest?: {
+    requestedAt: any;
+    targetPassword?: string;
+    answersCorrect?: boolean;
+    activeAt?: any;
+  } | null;
+}
+
+export interface LoginLog {
+  id?: string;
+  userId: Roommate | string;
+  fullName: string;
+  email: string;
+  userRole: string;
+  status: 'Success' | 'Failed' | 'Locked';
+  timestamp: any;
+  ipAddress: string;
+  country: string;
+  state: string;
+  city: string;
+  location: string;
+  deviceName: string;
+  deviceType: 'Desktop' | 'Mobile' | 'Tablet';
+  operatingSystem: string;
+  browser: string;
+  browserVersion: string;
+  screenResolution: string;
+  timeZone: string;
+  language: string;
+  sessionId: string;
+  logoutTime?: any;
+  sessionDuration?: number;
+  failureReason?: string;
 }
 
 export type PersonalAccountType = 'Cash' | 'Bank Account' | 'Revolut' | 'Digital Wallet';

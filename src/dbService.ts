@@ -12,7 +12,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Expense, Roommate, Profile, Category } from './types';
+import { Expense, Roommate, Profile, Category, LoginLog } from './types';
 import { sendDiscordNotification } from './discordService';
 
 // Operation Types as requested by Firestore integration skill
@@ -352,17 +352,40 @@ export async function logLendBorrow(
 }
 
 const PROFILES_COLLECTION = 'profiles';
+const LOGIN_LOGS_COLLECTION = 'login_logs';
+
+// Secure SHA-256 password hashing using Web Crypto API
+export async function hashPassword(password: string): Promise<string> {
+  if (!password) return '';
+  // If it's already a SHA-256 hash (64 hex chars), return it
+  if (/^[a-f0-9]{64}$/i.test(password)) {
+    return password;
+  }
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 // Fetch security profile for a roommate (or initialize with defaults)
 export async function getProfile(id: Roommate): Promise<Profile> {
   try {
     const docRef = doc(db, PROFILES_COLLECTION, id);
     const docSnap = await getDoc(docRef);
+    const defaultPasswordHash = await hashPassword('1234');
+
     if (docSnap.exists()) {
       const data = docSnap.data();
+      // Auto-hash password in database if it is in plain text
+      let dbPassword = data.password || '1234';
+      if (!/^[a-f0-9]{64}$/i.test(dbPassword)) {
+        dbPassword = await hashPassword(dbPassword);
+        await setDoc(docRef, { password: dbPassword }, { merge: true });
+      }
+
       return {
         id,
-        password: data.password || '1234',
+        password: dbPassword,
         nickname: data.nickname || id,
         avatar: data.avatar || (id === 'Ozric' ? '🐼' : '🦊'),
         accentColor: data.accentColor || (id === 'Ozric' ? 'indigo' : 'rose'),
@@ -370,30 +393,48 @@ export async function getProfile(id: Roommate): Promise<Profile> {
         preferredPaymentMethod: data.preferredPaymentMethod || 'Revolut',
         quickCoinCategory: data.quickCoinCategory || 'Electricity (Coins)',
         phone: data.phone || '',
+        failedAttemptsCount: data.failedAttemptsCount || 0,
+        lockoutType: data.lockoutType || 'none',
+        lockedUntil: data.lockedUntil || null,
+        permanentLock: data.permanentLock || false,
+        manualLocked: data.manualLocked || false,
+        recoveryRequest: data.recoveryRequest || null,
         updatedAt: data.updatedAt
       };
     } else {
-      // Initialize in database
+      // Initialize in database with secure hash
       const defaultProfile = {
-        password: '1234',
+        password: defaultPasswordHash,
         nickname: id,
         avatar: id === 'Ozric' ? '🐼' : '🦊',
         accentColor: id === 'Ozric' ? 'indigo' : 'rose',
         preferredPaymentMethod: 'Revolut',
         quickCoinCategory: 'Electricity (Coins)',
         phone: '',
+        failedAttemptsCount: 0,
+        lockoutType: 'none',
+        lockedUntil: null,
+        permanentLock: false,
+        manualLocked: false,
+        recoveryRequest: null,
         updatedAt: serverTimestamp()
       };
       await setDoc(docRef, defaultProfile);
       return {
         id,
-        password: '1234',
+        password: defaultPasswordHash,
         nickname: id,
         avatar: id === 'Ozric' ? '🐼' : '🦊',
         accentColor: id === 'Ozric' ? 'indigo' : 'rose',
         preferredPaymentMethod: 'Revolut',
         quickCoinCategory: 'Electricity (Coins)',
-        phone: ''
+        phone: '',
+        failedAttemptsCount: 0,
+        lockoutType: 'none',
+        lockedUntil: null,
+        permanentLock: false,
+        manualLocked: false,
+        recoveryRequest: null
       };
     }
   } catch (error) {
@@ -406,11 +447,18 @@ export async function updateProfile(id: Roommate, updates: Partial<Omit<Profile,
   try {
     const docRef = doc(db, PROFILES_COLLECTION, id);
     const cleanUpdates: any = {};
+    
+    // Hash password before saving if provided
+    if (updates.password !== undefined) {
+      updates.password = await hashPassword(updates.password);
+    }
+
     Object.entries(updates).forEach(([key, val]) => {
       if (val !== undefined) {
         cleanUpdates[key] = val;
       }
     });
+
     await setDoc(docRef, {
       ...cleanUpdates,
       updatedAt: serverTimestamp()
@@ -420,7 +468,7 @@ export async function updateProfile(id: Roommate, updates: Partial<Omit<Profile,
     if (updates.password !== undefined) {
       sendDiscordNotification('passwordSecurityChanges', {
         title: `🔐 Passcode Security Alteration`,
-        description: `A plain-text passcode modification has been recorded for roommate profile "${id}".`,
+        description: `A hashed passcode modification has been recorded for roommate profile "${id}".`,
         category: 'security',
         color: 15570220, // orange #ED8936
         fields: [
@@ -448,6 +496,84 @@ export async function updateProfile(id: Roommate, updates: Partial<Omit<Profile,
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${PROFILES_COLLECTION}/${id}`);
   }
+}
+
+// Log a successful or failed login attempt
+export async function addLoginLog(log: Omit<LoginLog, 'id' | 'timestamp'>): Promise<string> {
+  try {
+    const logsRef = collection(db, LOGIN_LOGS_COLLECTION);
+    const docRef = await addDoc(logsRef, {
+      ...log,
+      timestamp: serverTimestamp()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, LOGIN_LOGS_COLLECTION);
+  }
+}
+
+// Update a login log with logout details
+export async function updateLoginLogLogout(id: string, duration: number) {
+  try {
+    const docRef = doc(db, LOGIN_LOGS_COLLECTION, id);
+    await updateDoc(docRef, {
+      logoutTime: serverTimestamp(),
+      sessionDuration: duration
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `${LOGIN_LOGS_COLLECTION}/${id}`);
+  }
+}
+
+// Subscribe to real-time login logs
+export function subscribeLoginLogs(callback: (logs: LoginLog[]) => void, onError?: (error: any) => void) {
+  const logsRef = collection(db, LOGIN_LOGS_COLLECTION);
+  const q = query(logsRef, orderBy('timestamp', 'desc'));
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const logs: LoginLog[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        logs.push({
+          id: doc.id,
+          userId: data.userId,
+          fullName: data.fullName,
+          email: data.email,
+          userRole: data.userRole,
+          status: data.status,
+          timestamp: data.timestamp ? (data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp)) : new Date(),
+          ipAddress: data.ipAddress || '',
+          country: data.country || '',
+          state: data.state || '',
+          city: data.city || '',
+          location: data.location || '',
+          deviceName: data.deviceName || '',
+          deviceType: data.deviceType || 'Desktop',
+          operatingSystem: data.operatingSystem || '',
+          browser: data.browser || '',
+          browserVersion: data.browserVersion || '',
+          screenResolution: data.screenResolution || '',
+          timeZone: data.timeZone || '',
+          language: data.language || '',
+          sessionId: data.sessionId || '',
+          logoutTime: data.logoutTime ? (data.logoutTime.toDate ? data.logoutTime.toDate() : new Date(data.logoutTime)) : null,
+          sessionDuration: data.sessionDuration || 0,
+          failureReason: data.failureReason || ''
+        });
+      });
+      callback(logs);
+    },
+    (error) => {
+      console.error("Firestore login logs subscription error: ", error);
+      if (onError) {
+        onError(error);
+      } else {
+        handleFirestoreError(error, OperationType.GET, LOGIN_LOGS_COLLECTION);
+      }
+    }
+  );
 }
 
 

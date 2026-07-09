@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Roommate, Profile, Expense, Category } from '../types';
+import { Roommate, Profile, Expense, Category, LoginLog } from '../types';
 import { 
   getProfile, 
   updateProfile, 
   addExpense, 
   deleteExpense, 
   confirmExpense, 
-  cancelDeleteExpense 
+  cancelDeleteExpense,
+  subscribeLoginLogs
 } from '../dbService';
 import CustomConfirmModal from './CustomConfirmModal';
 import { 
@@ -50,7 +51,7 @@ interface AdminPanelModalProps {
   onRefreshNicknames: () => void;
 }
 
-type AdminTab = 'ledger' | 'profiles' | 'discord' | 'maintenance';
+type AdminTab = 'ledger' | 'profiles' | 'discord' | 'security' | 'maintenance';
 
 export default function AdminPanelModal({ expenses, currentUser, onClose, onRefreshNicknames }: AdminPanelModalProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('ledger');
@@ -66,6 +67,24 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
   // Profiles
   const [ozricProfile, setOzricProfile] = useState<Profile | null>(null);
   const [pawanProfile, setPawanProfile] = useState<Profile | null>(null);
+
+  // Security Audit Log & Controls State
+  const [loginLogs, setLoginLogs] = useState<LoginLog[]>([]);
+  const [securitySearchQuery, setSecuritySearchQuery] = useState('');
+  const [securityStatusFilter, setSecurityStatusFilter] = useState<'all' | 'Success' | 'Failed' | 'Locked'>('all');
+  const [securityUserFilter, setSecurityUserFilter] = useState<'all' | 'Ozric' | 'Pawan'>('all');
+
+  useEffect(() => {
+    const unsubscribe = subscribeLoginLogs(
+      (data) => {
+        setLoginLogs(data);
+      },
+      (err) => {
+        console.error("Failed to load security logs:", err);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
   
   // Nicknames & Passwords Form
   const [ozricNick, setOzricNick] = useState('');
@@ -449,6 +468,22 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
             }`}
           >
             Discord Push Settings
+          </button>
+
+          <button
+            id="tab-admin-security"
+            onClick={() => {
+              setErrorMsg('');
+              setSuccessMsg('');
+              setActiveTab('security');
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer ${
+              activeTab === 'security'
+                ? 'bg-rose-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                : 'bg-white text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            🛡️ Security Audits
           </button>
 
           <button
@@ -1239,6 +1274,370 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
                       </button>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* TAB: SECURITY AUDIT & CONTROLS */}
+              {activeTab === 'security' && (
+                <div className="space-y-6 animate-fade-in">
+                  
+                  {/* ROOMMATE PROFILES SECURITY CONFIGURATIONS */}
+                  <div className="border-3 border-slate-900 rounded-2xl p-5 bg-indigo-50/10 space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-950 font-mono flex items-center gap-1.5 border-b-2 border-slate-200 pb-2">
+                      <Key className="w-4 h-4 text-indigo-600" />
+                      Roommate Security Controls
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* PROFILE OZRIC */}
+                      {(() => {
+                        const p = ozricProfile;
+                        if (!p) return null;
+                        const failedCount = p.failedAttemptsCount || 0;
+                        const isManual = p.manualLocked;
+                        const isPerm = p.permanentLock;
+                        const isTemp = p.lockedUntil && new Date(p.lockedUntil.toDate ? p.lockedUntil.toDate() : p.lockedUntil) > new Date();
+                        
+                        let stateBadge = <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold">🟢 Active & Secured</span>;
+                        if (isManual) stateBadge = <span className="bg-rose-100 text-rose-800 border border-rose-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold">🔒 Suspended</span>;
+                        else if (isPerm) stateBadge = <span className="bg-rose-100 text-rose-800 border border-rose-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold">🔴 Permanently Locked</span>;
+                        else if (isTemp) stateBadge = <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold">🟡 Temporarily Locked</span>;
+
+                        return (
+                          <div className="border-2 border-slate-900 rounded-xl p-4 bg-white flex flex-col justify-between space-y-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2.5">
+                                <span className="text-2xl">{p.avatar || '🐼'}</span>
+                                <div>
+                                  <h5 className="text-sm font-black text-slate-900">{p.nickname || 'Ozric'} (Admin)</h5>
+                                  <p className="text-[10px] font-mono text-slate-400">Failed attempts: {failedCount}/3</p>
+                                </div>
+                              </div>
+                              {stateBadge}
+                            </div>
+
+                            {p.recoveryRequest && (
+                              <div className="text-[10px] font-mono bg-amber-50 p-2 rounded border border-amber-200 text-amber-800 leading-normal">
+                                ⚠️ Quarantine Reset Requested.<br/>
+                                Activates: {new Date(p.recoveryRequest.activeAt).toLocaleString('en-IE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} 
+                                ({Math.max(0, Math.ceil((new Date(p.recoveryRequest.activeAt).getTime() - Date.now()) / 60000))}m remaining)
+                              </div>
+                            )}
+
+                            {currentUser === 'Ozric' && (
+                              <div className="pt-2 border-t border-slate-100 flex gap-2">
+                                {(failedCount > 0 || isManual || isPerm || isTemp || p.recoveryRequest) && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      setActionLoading(true);
+                                      try {
+                                        await updateProfile('Ozric', {
+                                          failedAttemptsCount: 0,
+                                          lockoutType: 'none',
+                                          lockedUntil: null,
+                                          permanentLock: false,
+                                          manualLocked: false,
+                                          recoveryRequest: null
+                                        }, 'Ozric (Admin)');
+                                        const updated = await getProfile('Ozric');
+                                        setOzricProfile(updated);
+                                        setSuccessMsg('Successfully restored and unlocked profile for Ozric!');
+                                      } catch (err: any) {
+                                        setErrorMsg('Unlocking failed: ' + err.message);
+                                      } finally {
+                                        setActionLoading(false);
+                                      }
+                                    }}
+                                    className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white border border-slate-900 rounded-lg text-[10px] font-black uppercase tracking-wide cursor-pointer"
+                                  >
+                                    Unlock / Reset
+                                  </button>
+                                )}
+                                
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setActionLoading(true);
+                                    try {
+                                      await updateProfile('Ozric', { manualLocked: !isManual }, 'Ozric (Admin)');
+                                      const updated = await getProfile('Ozric');
+                                      setOzricProfile(updated);
+                                      setSuccessMsg(`Successfully ${isManual ? 'restored' : 'manually suspended'} Ozric!`);
+                                    } catch (err: any) {
+                                      setErrorMsg('Action failed: ' + err.message);
+                                    } finally {
+                                      setActionLoading(false);
+                                    }
+                                  }}
+                                  className={`flex-1 py-1.5 border border-slate-900 rounded-lg text-[10px] font-black uppercase tracking-wide cursor-pointer ${
+                                    isManual ? 'bg-indigo-50 text-indigo-750' : 'bg-rose-50 text-rose-750'
+                                  }`}
+                                >
+                                  {isManual ? 'Lift Suspension' : 'Suspend Profile'}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* PROFILE PAWAN */}
+                      {(() => {
+                        const p = pawanProfile;
+                        if (!p) return null;
+                        const failedCount = p.failedAttemptsCount || 0;
+                        const isManual = p.manualLocked;
+                        const isPerm = p.permanentLock;
+                        const isTemp = p.lockedUntil && new Date(p.lockedUntil.toDate ? p.lockedUntil.toDate() : p.lockedUntil) > new Date();
+                        
+                        let stateBadge = <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold">🟢 Active & Secured</span>;
+                        if (isManual) stateBadge = <span className="bg-rose-100 text-rose-800 border border-rose-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold">🔒 Suspended</span>;
+                        else if (isPerm) stateBadge = <span className="bg-rose-100 text-rose-800 border border-rose-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold">🔴 Permanently Locked</span>;
+                        else if (isTemp) stateBadge = <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[10px] px-2.5 py-0.5 rounded-full font-bold">🟡 Temporarily Locked</span>;
+
+                        return (
+                          <div className="border-2 border-slate-900 rounded-xl p-4 bg-white flex flex-col justify-between space-y-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2.5">
+                                <span className="text-2xl">{p.avatar || '🦊'}</span>
+                                <div>
+                                  <h5 className="text-sm font-black text-slate-900">{p.nickname || 'Pawan'}</h5>
+                                  <p className="text-[10px] font-mono text-slate-400">Failed attempts: {failedCount}/3</p>
+                                </div>
+                              </div>
+                              {stateBadge}
+                            </div>
+
+                            {currentUser === 'Ozric' && (
+                              <div className="pt-2 border-t border-slate-100 flex gap-2">
+                                {(failedCount > 0 || isManual || isPerm || isTemp) && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      setActionLoading(true);
+                                      try {
+                                        await updateProfile('Pawan', {
+                                          failedAttemptsCount: 0,
+                                          lockoutType: 'none',
+                                          lockedUntil: null,
+                                          permanentLock: false,
+                                          manualLocked: false
+                                        }, 'Ozric (Admin)');
+                                        const updated = await getProfile('Pawan');
+                                        setPawanProfile(updated);
+                                        setSuccessMsg('Successfully restored and unlocked profile for Pawan!');
+                                      } catch (err: any) {
+                                        setErrorMsg('Unlocking failed: ' + err.message);
+                                      } finally {
+                                        setActionLoading(false);
+                                      }
+                                    }}
+                                    className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white border border-slate-900 rounded-lg text-[10px] font-black uppercase tracking-wide cursor-pointer"
+                                  >
+                                    Unlock / Reset
+                                  </button>
+                                )}
+                                
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setActionLoading(true);
+                                    try {
+                                      await updateProfile('Pawan', { manualLocked: !isManual }, 'Ozric (Admin)');
+                                      const updated = await getProfile('Pawan');
+                                      setPawanProfile(updated);
+                                      setSuccessMsg(`Successfully ${isManual ? 'restored' : 'manually suspended'} Pawan!`);
+                                    } catch (err: any) {
+                                      setErrorMsg('Action failed: ' + err.message);
+                                    } finally {
+                                      setActionLoading(false);
+                                    }
+                                  }}
+                                  className={`flex-1 py-1.5 border border-slate-900 rounded-lg text-[10px] font-black uppercase tracking-wide cursor-pointer ${
+                                    isManual ? 'bg-indigo-50 text-indigo-750' : 'bg-rose-50 text-rose-750'
+                                  }`}
+                                >
+                                  {isManual ? 'Lift Suspension' : 'Suspend Profile'}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* ACTIVE SESSIONS PANEL */}
+                  <div className="border-3 border-slate-900 rounded-2xl p-5 bg-pink-50/10 space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-950 font-mono flex items-center gap-1.5 border-b-2 border-slate-200 pb-2">
+                      <Users className="w-4 h-4 text-pink-600" />
+                      Active Dashboard Sessions
+                    </h4>
+
+                    {(() => {
+                      const now = new Date().getTime();
+                      const activeSessions = loginLogs.filter(log => {
+                        const logTime = new Date(log.timestamp).getTime();
+                        return log.status === 'Success' && !log.logoutTime && (now - logTime) < 24 * 3600 * 1000;
+                      });
+
+                      if (activeSessions.length === 0) {
+                        return (
+                          <div className="text-center py-6 border-2 border-dashed border-slate-250 rounded-xl bg-slate-50">
+                            <p className="text-xs text-slate-550 font-mono">No active real-time roommate sessions logged in the last 24 hours.</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                          {activeSessions.map((sess) => (
+                            <div key={sess.id} className="bg-white border-2 border-slate-900 rounded-xl p-3.5 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] flex items-center justify-between gap-3">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span>
+                                  <span className="text-xs font-black text-slate-900">{sess.fullName}</span>
+                                  <span className="text-[9px] font-mono text-indigo-600 bg-indigo-50 border border-indigo-200 px-1 py-0.5 rounded font-bold">{sess.sessionId}</span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 font-medium">Device: {sess.deviceName}</p>
+                                <p className="text-[10px] text-slate-500 font-medium">Location: {sess.city}, {sess.country} • {sess.ipAddress}</p>
+                                <p className="text-[9px] text-slate-400 font-mono">Online since: {new Date(sess.timestamp).toLocaleTimeString()}</p>
+                              </div>
+
+                              {currentUser === 'Ozric' && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setActionLoading(true);
+                                    try {
+                                      const duration = Math.floor((Date.now() - new Date(sess.timestamp).getTime()) / 1000);
+                                      const { updateLoginLogLogout } = await import('../dbService');
+                                      await updateLoginLogLogout(sess.id!, duration);
+                                      setSuccessMsg(`Successfully terminated active session ${sess.sessionId}!`);
+                                    } catch (err: any) {
+                                      setErrorMsg('Session termination failed: ' + err.message);
+                                    } finally {
+                                      setActionLoading(false);
+                                    }
+                                  }}
+                                  className="py-1 px-2.5 bg-rose-100 hover:bg-rose-200 text-rose-800 border-2 border-slate-900 rounded-lg text-[9px] font-black uppercase tracking-wide cursor-pointer"
+                                >
+                                  Kill
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* IMMUTABLE LOGIN ACTIVITY AUDITS */}
+                  <div className="border-3 border-slate-900 rounded-2xl p-5 bg-slate-50 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-slate-200 pb-3">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-950 font-mono flex items-center gap-1.5">
+                        <SlidersHorizontal className="w-4 h-4 text-indigo-650" />
+                        Immutable Login Security Audit Logs
+                      </h4>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Search Security */}
+                        <input
+                          id="input-sec-search"
+                          type="text"
+                          placeholder="Search Audits..."
+                          value={securitySearchQuery}
+                          onChange={(e) => setSecuritySearchQuery(e.target.value)}
+                          className="px-2.5 py-1 text-xs border-2 border-slate-900 rounded-lg bg-white"
+                        />
+
+                        {/* Status Filter */}
+                        <select
+                          id="select-sec-status"
+                          value={securityStatusFilter}
+                          onChange={(e) => setSecurityStatusFilter(e.target.value as any)}
+                          className="px-2.5 py-1 text-xs border-2 border-slate-900 rounded-lg bg-white"
+                        >
+                          <option value="all">All Statuses</option>
+                          <option value="Success">Success</option>
+                          <option value="Failed">Failed</option>
+                          <option value="Locked">Locked / Cooldown</option>
+                        </select>
+
+                        {/* User Filter */}
+                        <select
+                          id="select-sec-user"
+                          value={securityUserFilter}
+                          onChange={(e) => setSecurityUserFilter(e.target.value as any)}
+                          className="px-2.5 py-1 text-xs border-2 border-slate-900 rounded-lg bg-white"
+                        >
+                          <option value="all">All Profiles</option>
+                          <option value="Ozric">Ozric (Admin)</option>
+                          <option value="Pawan">Pawan</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3.5 max-h-[350px] overflow-y-auto pr-1">
+                      {(() => {
+                        const filtered = loginLogs.filter(log => {
+                          const matchesQuery = !securitySearchQuery ? true : (
+                            log.fullName.toLowerCase().includes(securitySearchQuery.toLowerCase()) ||
+                            log.ipAddress.includes(securitySearchQuery) ||
+                            log.city.toLowerCase().includes(securitySearchQuery.toLowerCase()) ||
+                            log.country.toLowerCase().includes(securitySearchQuery.toLowerCase()) ||
+                            log.deviceName.toLowerCase().includes(securitySearchQuery.toLowerCase())
+                          );
+
+                          const matchesStatus = securityStatusFilter === 'all' ? true : log.status === securityStatusFilter;
+                          const matchesUser = securityUserFilter === 'all' ? true : log.userId === securityUserFilter;
+
+                          return matchesQuery && matchesStatus && matchesUser;
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="text-center py-10">
+                              <p className="text-xs text-slate-500 font-bold font-mono">No security logs match your search parameters.</p>
+                            </div>
+                          );
+                        }
+
+                        return filtered.map((log) => {
+                          let badgeStyle = "bg-emerald-50 text-emerald-800 border-emerald-300";
+                          if (log.status === 'Failed') badgeStyle = "bg-amber-50 text-amber-800 border-amber-300";
+                          else if (log.status === 'Locked') badgeStyle = "bg-rose-50 text-rose-800 border-rose-300";
+
+                          const logTime = new Date(log.timestamp).toLocaleString();
+                          const sessionDesc = log.status === 'Success' 
+                            ? (log.logoutTime ? `Session duration: ${Math.floor(log.sessionDuration! / 60)}m ${log.sessionDuration! % 60}s` : 'Active Session') 
+                            : `Failure Reason: ${log.failureReason || 'N/A'}`;
+
+                          return (
+                            <div key={log.id} className="bg-white border border-slate-300 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-800 transition duration-150 text-[11px] font-sans">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${badgeStyle} font-mono`}>
+                                    {log.status}
+                                  </span>
+                                  <span className="font-black text-slate-900">{log.fullName} ({log.userRole})</span>
+                                  <span className="text-slate-400 font-mono">{logTime}</span>
+                                </div>
+                                <p className="text-slate-650 font-medium">Device: <span className="text-slate-850 font-semibold">{log.deviceName}</span> • Screen: {log.screenResolution} • Locale: {log.language}</p>
+                                <p className="text-slate-650 font-medium">Location: <span className="text-slate-850 font-semibold">{log.city}, {log.country}</span> • IP: <span className="text-indigo-650 font-mono font-bold">{log.ipAddress}</span></p>
+                              </div>
+                              <div className="text-left sm:text-right font-mono text-[10px] text-slate-500 bg-slate-50 border border-slate-200 rounded p-2 sm:max-w-xs shrink-0 self-start sm:self-center">
+                                <div className="font-bold text-slate-800">Session ID: {log.sessionId}</div>
+                                <div className="text-[9px] mt-0.5 leading-tight">{sessionDesc}</div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+
                 </div>
               )}
 

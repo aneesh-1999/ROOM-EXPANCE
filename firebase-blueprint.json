@@ -105,6 +105,32 @@
         },
         "nickname": {
           "type": "string"
+        },
+        "failedAttemptsCount": {
+          "type": "integer"
+        },
+        "lockoutType": {
+          "type": "string",
+          "enum": ["none", "temporary_10", "temporary_30", "permanent"]
+        },
+        "lockedUntil": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "permanentLock": {
+          "type": "boolean"
+        },
+        "recoveryRequest": {
+          "type": "object",
+          "properties": {
+            "requestedAt": { "type": "string" },
+            "targetPassword": { "type": "string" },
+            "answersCorrect": { "type": "boolean" },
+            "activeAt": { "type": "string" }
+          }
+        },
+        "manualLocked": {
+          "type": "boolean"
         }
       },
       "required": ["password"]
@@ -283,9 +309,46 @@
         }
       },
       "required": ["enabled", "webhookUrl", "messageFormat", "customPrefix"]
+    },
+    "LoginLog": {
+      "title": "LoginLog",
+      "description": "Log of successful and failed login attempts for security auditing.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "userRole": { "type": "string" },
+        "status": { "type": "string", "enum": ["Success", "Failed", "Locked"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "ipAddress": { "type": "string" },
+        "country": { "type": "string" },
+        "state": { "type": "string" },
+        "city": { "type": "string" },
+        "location": { "type": "string" },
+        "deviceName": { "type": "string" },
+        "deviceType": { "type": "string" },
+        "operatingSystem": { "type": "string" },
+        "browser": { "type": "string" },
+        "browserVersion": { "type": "string" },
+        "screenResolution": { "type": "string" },
+        "timeZone": { "type": "string" },
+        "language": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "logoutTime": { "type": "string", "format": "date-time" },
+        "sessionDuration": { "type": "number" },
+        "failureReason": { "type": "string" }
+      },
+      "required": ["userId", "fullName", "email", "userRole", "status", "timestamp", "sessionId"]
     }
   },
   "firestore": {
+    "login_logs": {
+      "schema": {
+        "$ref": "#/entities/LoginLog"
+      },
+      "description": "Immutable audit trails of successful, failed, and locked login events."
+    },
     "discord_settings": {
       "schema": {
         "$ref": "#/entities/DiscordSettings"
