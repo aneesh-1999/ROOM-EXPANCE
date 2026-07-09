@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Expense, Roommate, Profile, Category } from './types';
+import { sendDiscordNotification } from './discordService';
 
 // Operation Types as requested by Firestore integration skill
 export enum OperationType {
@@ -107,7 +108,7 @@ export function subscribeExpenses(callback: (expenses: Expense[]) => void, onErr
 }
 
 // Add a new expense
-export async function addExpense(expense: Omit<Expense, 'id' | 'timestamp'>) {
+export async function addExpense(expense: Omit<Expense, 'id' | 'timestamp'>, actor?: Roommate) {
   try {
     const expensesRef = collection(db, EXPENSES_COLLECTION);
     
@@ -124,6 +125,43 @@ export async function addExpense(expense: Omit<Expense, 'id' | 'timestamp'>) {
       status: expense.status || 'pending',
       timestamp: serverTimestamp()
     });
+
+    // Send Discord push notification
+    const triggerActor = actor || cleanedExpense.createdBy || cleanedExpense.paidBy;
+    let notifTitle = `💰 New Shared Expense Entered`;
+    let notifDesc = `A new shared bill/item has been submitted to the ledger.`;
+    let color = 5195493; // indigo #4F46E5
+
+    if (cleanedExpense.isCoin) {
+      notifTitle = `🔌 Electricity Coin Logged`;
+      notifDesc = `A physical electricity coin has been inserted and logged.`;
+      color = 16753920; // orange #FFA500
+    } else if (cleanedExpense.isSettlement) {
+      notifTitle = `🤝 Balance Settle-Up Registered`;
+      notifDesc = `A debt settlement transfer has been recorded.`;
+      color = 3066993; // emerald #2ECC71
+    } else if (cleanedExpense.isLendBorrow) {
+      notifTitle = `💸 Direct Roommate Loan Logged`;
+      notifDesc = `A roommate direct lend/borrow transaction has been created.`;
+      color = 10181046; // purple #9B59B6
+    }
+
+    sendDiscordNotification('newTransaction', {
+      title: notifTitle,
+      description: notifDesc,
+      category: 'transactions',
+      color,
+      fields: [
+        { name: 'Title', value: cleanedExpense.title || 'Untitled', inline: true },
+        { name: 'Amount', value: `€${Number(cleanedExpense.amount || 0).toFixed(2)}`, inline: true },
+        { name: 'Paid By', value: cleanedExpense.paidBy || 'Unknown', inline: true },
+        { name: 'Split Type', value: cleanedExpense.splitType || '50/50', inline: true },
+        { name: 'Category', value: cleanedExpense.category || 'Other', inline: true },
+        { name: 'Logged By', value: triggerActor || 'System', inline: true },
+        { name: 'Status', value: (expense.status || 'pending') === 'confirmed' ? '✅ Confirmed' : '⏳ Pending Confirmation', inline: true }
+      ]
+    }, triggerActor);
+
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, EXPENSES_COLLECTION);
@@ -131,10 +169,31 @@ export async function addExpense(expense: Omit<Expense, 'id' | 'timestamp'>) {
 }
 
 // Delete an expense
-export async function deleteExpense(id: string) {
+export async function deleteExpense(id: string, actor?: string) {
   try {
     const docRef = doc(db, EXPENSES_COLLECTION, id);
+    const docSnap = await getDoc(docRef);
+    let details: any = null;
+    if (docSnap.exists()) {
+      details = docSnap.data();
+    }
+
     await deleteDoc(docRef);
+
+    if (details) {
+      sendDiscordNotification('updateDeleteTransaction', {
+        title: `🗑️ Shared Transaction Deleted`,
+        description: `A shared transaction has been completely deleted from the cohabitation ledger.`,
+        category: 'transactions',
+        color: 15158332, // red #E74C3C
+        fields: [
+          { name: 'Title', value: details.title || 'Untitled', inline: true },
+          { name: 'Amount', value: `€${Number(details.amount || 0).toFixed(2)}`, inline: true },
+          { name: 'Paid By', value: details.paidBy || 'Unknown', inline: true },
+          { name: 'Deleted By', value: actor || 'System', inline: true }
+        ]
+      }, actor);
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `${EXPENSES_COLLECTION}/${id}`);
   }
@@ -148,31 +207,80 @@ export async function requestDeleteExpense(id: string, requester: Roommate) {
       deleteRequested: true,
       deleteRequestedBy: requester
     });
+
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const details = docSnap.data();
+      sendDiscordNotification('updateDeleteTransaction', {
+        title: `⚠️ Transaction Deletion Requested`,
+        description: `A delete request has been placed. This action must be confirmed/approved by the other roommate.`,
+        category: 'transactions',
+        color: 15105570, // orange-red #E67E22
+        fields: [
+          { name: 'Title', value: details.title || 'Untitled', inline: true },
+          { name: 'Amount', value: `€${Number(details.amount || 0).toFixed(2)}`, inline: true },
+          { name: 'Paid By', value: details.paidBy || 'Unknown', inline: true },
+          { name: 'Requested By', value: requester, inline: true }
+        ]
+      }, requester);
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${EXPENSES_COLLECTION}/${id}`);
   }
 }
 
 // Cancel or reject a deletion request
-export async function cancelDeleteExpense(id: string) {
+export async function cancelDeleteExpense(id: string, actor?: string) {
   try {
     const docRef = doc(db, EXPENSES_COLLECTION, id);
     await updateDoc(docRef, {
       deleteRequested: false,
       deleteRequestedBy: null
     });
+
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const details = docSnap.data();
+      sendDiscordNotification('approvalRejectionActions', {
+        title: `❌ Deletion Request Rejected`,
+        description: `The deletion proposal for a ledger item has been rejected and restored.`,
+        category: 'transactions',
+        color: 3447003, // blue #3498DB
+        fields: [
+          { name: 'Title', value: details.title || 'Untitled', inline: true },
+          { name: 'Amount', value: `€${Number(details.amount || 0).toFixed(2)}`, inline: true },
+          { name: 'Restored By', value: actor || 'System', inline: true }
+        ]
+      }, actor);
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${EXPENSES_COLLECTION}/${id}`);
   }
 }
 
 // Confirm/approve a pending transaction
-export async function confirmExpense(id: string) {
+export async function confirmExpense(id: string, actor?: string) {
   try {
     const docRef = doc(db, EXPENSES_COLLECTION, id);
     await updateDoc(docRef, {
       status: 'confirmed'
     });
+
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const details = docSnap.data();
+      sendDiscordNotification('approvalRejectionActions', {
+        title: `✅ Transaction Approved`,
+        description: `A pending transaction has been approved and finalized into the cohabitation ledger.`,
+        category: 'transactions',
+        color: 3066993, // dark green #2ECC71
+        fields: [
+          { name: 'Title', value: details.title || 'Untitled', inline: true },
+          { name: 'Amount', value: `€${Number(details.amount || 0).toFixed(2)}`, inline: true },
+          { name: 'Approved By', value: actor || 'System', inline: true }
+        ]
+      }, actor);
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${EXPENSES_COLLECTION}/${id}`);
   }
@@ -294,7 +402,7 @@ export async function getProfile(id: Roommate): Promise<Profile> {
 }
 
 // Update security profile for a roommate
-export async function updateProfile(id: Roommate, updates: Partial<Omit<Profile, 'id'>>) {
+export async function updateProfile(id: Roommate, updates: Partial<Omit<Profile, 'id'>>, actor?: string) {
   try {
     const docRef = doc(db, PROFILES_COLLECTION, id);
     const cleanUpdates: any = {};
@@ -307,6 +415,36 @@ export async function updateProfile(id: Roommate, updates: Partial<Omit<Profile,
       ...cleanUpdates,
       updatedAt: serverTimestamp()
     }, { merge: true });
+
+    // Send notifications based on updated parameters
+    if (updates.password !== undefined) {
+      sendDiscordNotification('passwordSecurityChanges', {
+        title: `🔐 Passcode Security Alteration`,
+        description: `A plain-text passcode modification has been recorded for roommate profile "${id}".`,
+        category: 'security',
+        color: 15570220, // orange #ED8936
+        fields: [
+          { name: 'Roommate Profile', value: id, inline: true },
+          { name: 'Modified By', value: actor || id, inline: true }
+        ]
+      }, actor);
+    }
+
+    if (updates.nickname !== undefined || updates.avatar !== undefined || updates.accentColor !== undefined || updates.monthlyBudget !== undefined) {
+      sendDiscordNotification('settingsChanges', {
+        title: `⚙️ Profile Customization Updated`,
+        description: `Custom avatar, nickname, budget limit, or color preference saved for profile "${id}".`,
+        category: 'security',
+        color: 3447003, // blue #3498DB
+        fields: [
+          { name: 'Roommate Profile', value: id, inline: true },
+          { name: 'New Nickname', value: updates.nickname || 'Unchanged', inline: true },
+          { name: 'New Avatar', value: updates.avatar || 'Unchanged', inline: true },
+          { name: 'New Budget Limit', value: updates.monthlyBudget ? `€${updates.monthlyBudget}` : 'None/Unchanged', inline: true },
+          { name: 'Modified By', value: actor || id, inline: true }
+        ]
+      }, actor);
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `${PROFILES_COLLECTION}/${id}`);
   }

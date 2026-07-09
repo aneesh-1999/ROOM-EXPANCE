@@ -31,23 +31,37 @@ import {
   Lock,
   Unlock,
   Tag,
-  CheckCircle
+  CheckCircle,
+  BellRing,
+  Send
 } from 'lucide-react';
+import { 
+  getDiscordSettings, 
+  saveDiscordSettings, 
+  testDiscordWebhook, 
+  DiscordSettings,
+  DEFAULT_DISCORD_SETTINGS
+} from '../discordService';
 
 interface AdminPanelModalProps {
   expenses: Expense[];
+  currentUser?: Roommate;
   onClose: () => void;
   onRefreshNicknames: () => void;
 }
 
-type AdminTab = 'ledger' | 'profiles' | 'maintenance';
+type AdminTab = 'ledger' | 'profiles' | 'discord' | 'maintenance';
 
-export default function AdminPanelModal({ expenses, onClose, onRefreshNicknames }: AdminPanelModalProps) {
+export default function AdminPanelModal({ expenses, currentUser, onClose, onRefreshNicknames }: AdminPanelModalProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('ledger');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Discord Settings State
+  const [discordSettings, setDiscordSettings] = useState<DiscordSettings>(DEFAULT_DISCORD_SETTINGS);
+  const [testLoading, setTestLoading] = useState(false);
 
   // Profiles
   const [ozricProfile, setOzricProfile] = useState<Profile | null>(null);
@@ -112,12 +126,14 @@ export default function AdminPanelModal({ expenses, onClose, onRefreshNicknames 
   };
 
   useEffect(() => {
-    async function loadAllProfiles() {
+    async function loadAllProfilesAndSettings() {
       setLoading(true);
       setErrorMsg('');
       try {
         const ozricData = await getProfile('Ozric');
         const pawanData = await getProfile('Pawan');
+        const discSettings = await getDiscordSettings();
+
         if (ozricData) {
           setOzricProfile(ozricData);
           setOzricNick(ozricData.nickname || 'Ozric');
@@ -128,13 +144,16 @@ export default function AdminPanelModal({ expenses, onClose, onRefreshNicknames 
           setPawanNick(pawanData.nickname || 'Pawan');
           setPawanPass(pawanData.password || '1234');
         }
+        if (discSettings) {
+          setDiscordSettings(discSettings);
+        }
       } catch (err: any) {
-        setErrorMsg('Failed to load roommate profiles: ' + err.message);
+        setErrorMsg('Failed to load roommate profiles and configurations: ' + err.message);
       } finally {
         setLoading(false);
       }
     }
-    loadAllProfiles();
+    loadAllProfilesAndSettings();
   }, []);
 
   // Compute Metrics
@@ -186,7 +205,7 @@ export default function AdminPanelModal({ expenses, onClose, onRefreshNicknames 
       await updateProfile(user, {
         nickname: nickname.trim(),
         password: pass.trim()
-      });
+      }, `${currentUser} (Admin)`);
       setSuccessMsg(`Updated ${user}'s profile successfully!`);
       onRefreshNicknames();
     } catch (err: any) {
@@ -202,8 +221,8 @@ export default function AdminPanelModal({ expenses, onClose, onRefreshNicknames 
     setSuccessMsg('');
     setActionLoading(true);
     try {
-      await updateProfile('Ozric', { password: '1234' });
-      await updateProfile('Pawan', { password: '1234' });
+      await updateProfile('Ozric', { password: '1234' }, `${currentUser} (Admin)`);
+      await updateProfile('Pawan', { password: '1234' }, `${currentUser} (Admin)`);
       setOzricPass('1234');
       setPawanPass('1234');
       setSuccessMsg('Both profiles have been reset to default password: "1234"');
@@ -220,7 +239,7 @@ export default function AdminPanelModal({ expenses, onClose, onRefreshNicknames 
     setSuccessMsg('');
     setActionLoading(true);
     try {
-      await confirmExpense(id);
+      await confirmExpense(id, `${currentUser} (Admin)`);
       setSuccessMsg('Transaction approved successfully via Admin override.');
     } catch (err: any) {
       setErrorMsg('Failed to approve transaction: ' + err.message);
@@ -242,7 +261,7 @@ export default function AdminPanelModal({ expenses, onClose, onRefreshNicknames 
       onConfirm: async () => {
         setActionLoading(true);
         try {
-          await deleteExpense(id);
+          await deleteExpense(id, `${currentUser} (Admin)`);
           setSuccessMsg('Transaction removed permanently via Admin override.');
         } catch (err: any) {
           setErrorMsg('Failed to delete transaction: ' + err.message);
@@ -259,7 +278,7 @@ export default function AdminPanelModal({ expenses, onClose, onRefreshNicknames 
     setSuccessMsg('');
     setActionLoading(true);
     try {
-      await cancelDeleteExpense(id);
+      await cancelDeleteExpense(id, `${currentUser} (Admin)`);
       setSuccessMsg('Deletion request rejected. Transaction preserved.');
     } catch (err: any) {
       setErrorMsg('Failed to reject deletion: ' + err.message);
@@ -283,7 +302,7 @@ export default function AdminPanelModal({ expenses, onClose, onRefreshNicknames 
       let count = 0;
       for (const expense of expenses) {
         if (expense.id) {
-          await deleteExpense(expense.id);
+          await deleteExpense(expense.id, `${currentUser} (Admin)`);
           count++;
         }
       }
@@ -414,6 +433,22 @@ export default function AdminPanelModal({ expenses, onClose, onRefreshNicknames 
             }`}
           >
             Roommate Profiles
+          </button>
+
+          <button
+            id="tab-admin-discord"
+            onClick={() => {
+              setErrorMsg('');
+              setSuccessMsg('');
+              setActiveTab('discord');
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer ${
+              activeTab === 'discord'
+                ? 'bg-blue-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                : 'bg-white text-slate-800 hover:bg-slate-50'
+            }`}
+          >
+            Discord Push Settings
           </button>
 
           <button
@@ -766,6 +801,444 @@ export default function AdminPanelModal({ expenses, onClose, onRefreshNicknames 
                     <Key className="w-4 h-4 text-indigo-650" />
                     Wipe & Reset Both Passwords to Default ("1234")
                   </button>
+                </div>
+              )}
+
+              {/* TAB: DISCORD WEBHOOKS MANAGEMENT */}
+              {activeTab === 'discord' && (
+                <div className="border-3 border-slate-900 rounded-2xl p-5 bg-blue-50/15 space-y-4 animate-fade-in">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-slate-200 pb-3">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-950 font-mono flex items-center gap-1.5">
+                      <BellRing className="w-4 h-4 text-blue-650" />
+                      Discord Push Notifications Engine
+                    </h4>
+                    {currentUser !== 'Ozric' ? (
+                      <span className="text-[9px] font-black uppercase bg-rose-100 text-rose-800 border-2 border-rose-400 px-2.5 py-1 rounded-xl font-mono flex items-center gap-1">
+                        <Lock className="w-3 h-3" /> READ-ONLY ACCESS
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 border-2 border-emerald-400 px-2.5 py-1 rounded-xl font-mono flex items-center gap-1">
+                        <Unlock className="w-3 h-3" /> SUPER ADMIN MODE
+                      </span>
+                    )}
+                  </div>
+
+                  {currentUser !== 'Ozric' && (
+                    <div className="bg-amber-50 border-2 border-amber-300 text-amber-900 text-xs rounded-2xl p-4 flex items-start gap-2.5 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] font-bold">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                      <div>
+                        <p>Permission Level Restrained</p>
+                        <p className="text-[10px] text-amber-700 font-medium mt-0.5 font-mono">Only the Super Admin (Ozric) is authorized to modify Discord push notification webhooks and preferences. You can view the current configuration below in Read-Only mode.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SETTINGS CARDS */}
+                  <div className="space-y-4">
+                    
+                    {/* CARD 1: GLOBAL TOGGLE & MAIN WEBHOOK */}
+                    <div className="bg-white border-2 border-slate-900 rounded-xl p-4 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h5 className="text-xs font-black uppercase text-slate-900">Global Notification Toggle</h5>
+                          <p className="text-[10px] text-slate-500 font-medium">Turn Discord push notifications on or off globally across the ledger application.</p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={currentUser !== 'Ozric' || actionLoading}
+                          onClick={() => setDiscordSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
+                          className={`px-3 py-1.5 rounded-xl border-2 border-slate-900 text-xs font-black uppercase tracking-wider shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer ${
+                            discordSettings.enabled
+                              ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                          }`}
+                        >
+                          {discordSettings.enabled ? '🟢 ENABLED' : '🔴 DISABLED'}
+                        </button>
+                      </div>
+
+                      <div className="border-t border-slate-150 pt-3 space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
+                          Default Discord Webhook URL
+                        </label>
+                        <input
+                          id="discord-input-webhook-url"
+                          type="text"
+                          disabled={currentUser !== 'Ozric' || actionLoading}
+                          placeholder="https://discord.com/api/webhooks/..."
+                          value={discordSettings.webhookUrl}
+                          onChange={(e) => setDiscordSettings(prev => ({ ...prev, webhookUrl: e.target.value }))}
+                          className="w-full px-3 py-2 text-xs border-2 border-slate-900 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 disabled:opacity-75"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
+                          Custom Message Title Prefix
+                        </label>
+                        <input
+                          id="discord-input-prefix"
+                          type="text"
+                          disabled={currentUser !== 'Ozric' || actionLoading}
+                          placeholder="🏠 [Roommate Ledger]"
+                          value={discordSettings.customPrefix}
+                          onChange={(e) => setDiscordSettings(prev => ({ ...prev, customPrefix: e.target.value }))}
+                          className="w-full px-3 py-2 text-xs border-2 border-slate-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 disabled:opacity-75"
+                        />
+                      </div>
+
+                      <div className="flex gap-2.5 pt-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          id="btn-test-discord-webhook"
+                          disabled={testLoading || !discordSettings.webhookUrl}
+                          onClick={async () => {
+                            setTestLoading(true);
+                            setErrorMsg('');
+                            setSuccessMsg('');
+                            const ok = await testDiscordWebhook(discordSettings.webhookUrl, discordSettings.customPrefix);
+                            setTestLoading(false);
+                            if (ok) {
+                              setSuccessMsg('Test notification successfully transmitted to Discord webhook!');
+                            } else {
+                              setErrorMsg('Failed to transmit test webhook. Ensure the URL is valid.');
+                            }
+                          }}
+                          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-800 border-2 border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center gap-1.5"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          {testLoading ? 'Testing...' : 'Test Connection'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* CARD 2: CATEGORY SPECIFIC OVERRIDES (OPTIONAL/ADVANCED) */}
+                    <div className="bg-white border-2 border-slate-900 rounded-xl p-4 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] space-y-3.5">
+                      <div>
+                        <h5 className="text-xs font-black uppercase text-slate-900">Category-Specific Webhook Routing (Optional)</h5>
+                        <p className="text-[10px] text-slate-500 font-medium">Route notifications of different modules to distinct Discord channels (defaults to main webhook if left empty).</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-slate-150 pt-3">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black uppercase text-indigo-600 font-mono">Transactions Webhook</label>
+                          <input
+                            id="discord-custom-transactions"
+                            type="text"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            placeholder="Default Webhook fallback"
+                            value={discordSettings.customWebhooks?.transactions || ''}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              customWebhooks: { ...prev.customWebhooks, transactions: e.target.value }
+                            }))}
+                            className="w-full px-2.5 py-1.5 text-xs border-2 border-slate-900 rounded-xl font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50 disabled:opacity-75"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black uppercase text-rose-600 font-mono">Security Webhook</label>
+                          <input
+                            id="discord-custom-security"
+                            type="text"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            placeholder="Default Webhook fallback"
+                            value={discordSettings.customWebhooks?.security || ''}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              customWebhooks: { ...prev.customWebhooks, security: e.target.value }
+                            }))}
+                            className="w-full px-2.5 py-1.5 text-xs border-2 border-slate-900 rounded-xl font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50 disabled:opacity-75"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black uppercase text-emerald-600 font-mono">Savings Goals Webhook</label>
+                          <input
+                            id="discord-custom-savings"
+                            type="text"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            placeholder="Default Webhook fallback"
+                            value={discordSettings.customWebhooks?.savings || ''}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              customWebhooks: { ...prev.customWebhooks, savings: e.target.value }
+                            }))}
+                            className="w-full px-2.5 py-1.5 text-xs border-2 border-slate-900 rounded-xl font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50 disabled:opacity-75"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black uppercase text-amber-600 font-mono">Recurring Bills Webhook</label>
+                          <input
+                            id="discord-custom-bills"
+                            type="text"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            placeholder="Default Webhook fallback"
+                            value={discordSettings.customWebhooks?.bills || ''}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              customWebhooks: { ...prev.customWebhooks, bills: e.target.value }
+                            }))}
+                            className="w-full px-2.5 py-1.5 text-xs border-2 border-slate-900 rounded-xl font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50 disabled:opacity-75"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CARD 3: EVENT SUBSCRIPTIONS SELECTOR */}
+                    <div className="bg-white border-2 border-slate-900 rounded-xl p-4 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] space-y-3.5">
+                      <div>
+                        <h5 className="text-xs font-black uppercase text-slate-900">Event Notifications Subscription</h5>
+                        <p className="text-[10px] text-slate-500 font-medium">Select exactly which activities within the ledger engine should trigger a push notification.</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-150 pt-3 text-xs font-bold text-slate-700">
+                        
+                        <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            id="discord-evt-new-transaction"
+                            type="checkbox"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            checked={discordSettings.events.newTransaction}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              events: { ...prev.events, newTransaction: e.target.checked }
+                            }))}
+                            className="mt-0.5 rounded border-2 border-slate-900 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-wide">New Transactions</p>
+                            <p className="text-[9px] text-slate-455 font-semibold leading-tight">Shared expenses, quick coins, direct loan entries, settlements.</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            id="discord-evt-update-delete"
+                            type="checkbox"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            checked={discordSettings.events.updateDeleteTransaction}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              events: { ...prev.events, updateDeleteTransaction: e.target.checked }
+                            }))}
+                            className="mt-0.5 rounded border-2 border-slate-900 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-wide">Updates & Deletions</p>
+                            <p className="text-[9px] text-slate-455 font-semibold leading-tight">Deletion requests, transaction editing, or full removal.</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            id="discord-evt-login-logout"
+                            type="checkbox"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            checked={discordSettings.events.userLoginLogout}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              events: { ...prev.events, userLoginLogout: e.target.checked }
+                            }))}
+                            className="mt-0.5 rounded border-2 border-slate-900 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-wide">Logins & Logouts</p>
+                            <p className="text-[9px] text-slate-455 font-semibold leading-tight">Roommate unlocks dashboard profile or locks it.</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            id="discord-evt-security"
+                            type="checkbox"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            checked={discordSettings.events.passwordSecurityChanges}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              events: { ...prev.events, passwordSecurityChanges: e.target.checked }
+                            }))}
+                            className="mt-0.5 rounded border-2 border-slate-900 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-wide">Security Changes</p>
+                            <p className="text-[9px] text-slate-455 font-semibold leading-tight">Password modifications and admin wipes/resets.</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            id="discord-evt-accounts"
+                            type="checkbox"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            checked={discordSettings.events.accountChanges}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              events: { ...prev.events, accountChanges: e.target.checked }
+                            }))}
+                            className="mt-0.5 rounded border-2 border-slate-900 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-wide">Private Accounts</p>
+                            <p className="text-[9px] text-slate-455 font-semibold leading-tight">Creation, updates, or deletions of private budget vaults.</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            id="discord-evt-savings"
+                            type="checkbox"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            checked={discordSettings.events.savingsGoalsChanges}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              events: { ...prev.events, savingsGoalsChanges: e.target.checked }
+                            }))}
+                            className="mt-0.5 rounded border-2 border-slate-900 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-wide">Savings Benchmarks</p>
+                            <p className="text-[9px] text-slate-455 font-semibold leading-tight">Goal creation, contributions, deletion, and goal completions.</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            id="discord-evt-receipts"
+                            type="checkbox"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            checked={discordSettings.events.receiptUploads}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              events: { ...prev.events, receiptUploads: e.target.checked }
+                            }))}
+                            className="mt-0.5 rounded border-2 border-slate-900 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-wide">Receipt Uploads</p>
+                            <p className="text-[9px] text-slate-455 font-semibold leading-tight">Personal transactions file receipt attachments.</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            id="discord-evt-settings"
+                            type="checkbox"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            checked={discordSettings.events.settingsChanges}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              events: { ...prev.events, settingsChanges: e.target.checked }
+                            }))}
+                            className="mt-0.5 rounded border-2 border-slate-900 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-wide">Preferences & Settings</p>
+                            <p className="text-[9px] text-slate-455 font-semibold leading-tight">Updates to budgets, nicknames, accent colors, and emoji avatars.</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            id="discord-evt-finance"
+                            type="checkbox"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            checked={discordSettings.events.financeUpdates}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              events: { ...prev.events, financeUpdates: e.target.checked }
+                            }))}
+                            className="mt-0.5 rounded border-2 border-slate-900 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-wide">Business / Personal Finance</p>
+                            <p className="text-[9px] text-slate-455 font-semibold leading-tight">Private ledger transaction entries, bill payment events.</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            id="discord-evt-approvals"
+                            type="checkbox"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            checked={discordSettings.events.approvalRejectionActions}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              events: { ...prev.events, approvalRejectionActions: e.target.checked }
+                            }))}
+                            className="mt-0.5 rounded border-2 border-slate-900 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-wide">Approvals & Rejections</p>
+                            <p className="text-[9px] text-slate-455 font-semibold leading-tight">Roommate or Admin confirmation / cancelation actions.</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+                          <input
+                            id="discord-evt-failed-logins"
+                            type="checkbox"
+                            disabled={currentUser !== 'Ozric' || actionLoading}
+                            checked={discordSettings.events.failedLogins}
+                            onChange={(e) => setDiscordSettings(prev => ({
+                              ...prev,
+                              events: { ...prev.events, failedLogins: e.target.checked }
+                            }))}
+                            className="mt-0.5 rounded border-2 border-slate-900 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-slate-900 text-[11px] font-black uppercase tracking-wide">Failed Login Alerts</p>
+                            <p className="text-[9px] text-slate-455 font-semibold leading-tight">Security alerts when an incorrect passcode is entered.</p>
+                          </div>
+                        </label>
+
+                      </div>
+
+                      {/* MESSAGE FORMAT SELECTOR */}
+                      <div className="border-t border-slate-150 pt-3.5 flex items-center justify-between">
+                        <div>
+                          <h5 className="text-[11px] font-black uppercase text-slate-900">Message Layout Format</h5>
+                          <p className="text-[9px] text-slate-400 font-semibold leading-none mt-0.5">Choose between rich neobrutalist Embed structures or standard compact Markdown text formats.</p>
+                        </div>
+                        <select
+                          disabled={currentUser !== 'Ozric' || actionLoading}
+                          value={discordSettings.messageFormat}
+                          onChange={(e) => setDiscordSettings(prev => ({ ...prev, messageFormat: e.target.value as 'embed' | 'text' }))}
+                          className="bg-white border-2 border-slate-900 rounded-xl px-3 py-1.5 text-xs font-bold font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer bg-slate-50"
+                        >
+                          <option value="embed">Styled Embeds</option>
+                          <option value="text">Plain Markdown Text</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* SAVE BUTTON FOR SUPER ADMIN */}
+                    {currentUser === 'Ozric' && (
+                      <button
+                        type="button"
+                        id="btn-save-discord-settings"
+                        disabled={actionLoading}
+                        onClick={async () => {
+                          setActionLoading(true);
+                          setErrorMsg('');
+                          setSuccessMsg('');
+                          try {
+                            await saveDiscordSettings(discordSettings);
+                            setSuccessMsg('Discord Push configurations updated and synchronized successfully!');
+                          } catch (err: any) {
+                            setErrorMsg('Failed to persist Discord settings: ' + err.message);
+                          } finally {
+                            setActionLoading(false);
+                          }
+                        }}
+                        className="w-full py-3 rounded-xl border-2 border-slate-900 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
+                      >
+                        <Check className="w-4 h-4 text-white" />
+                        Save Discord Settings
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 

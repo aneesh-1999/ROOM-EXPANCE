@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Roommate, Profile } from '../types';
 import { getProfile } from '../dbService';
+import { sendDiscordNotification } from '../discordService';
 import { ShieldCheck, Lock, Unlock, RefreshCw, Key, Users, AlertCircle, ArrowRight } from 'lucide-react';
 
 interface ProfileLockScreenProps {
@@ -52,8 +53,30 @@ export default function ProfileLockScreen({
     await new Promise((resolve) => setTimeout(resolve, 350));
 
     if (password === profile.password) {
+      sendDiscordNotification('userLoginLogout', {
+        title: `🔓 Profile Unlocked Successfully`,
+        description: `${selectedUser} has successfully unlocked their roommate dashboard profile.`,
+        category: 'security',
+        color: 3066993, // emerald green
+        fields: [
+          { name: 'Roommate Profile', value: selectedUser, inline: true },
+          { name: 'Status', value: '🟢 Authenticated', inline: true }
+        ]
+      }, selectedUser);
+
       onUnlock();
     } else {
+      sendDiscordNotification('failedLogins', {
+        title: `🚨 Unauthorized Access Attempt`,
+        description: `An incorrect passcode was entered to unlock ${selectedUser}'s roommate profile.`,
+        category: 'security',
+        color: 15158332, // red
+        fields: [
+          { name: 'Attempted Profile', value: selectedUser, inline: true },
+          { name: 'Security Action', value: '❌ Failed Authentication', inline: true }
+        ]
+      }, selectedUser);
+
       setErrorMsg('Incorrect security password. Please try again.');
       setVerifying(false);
     }

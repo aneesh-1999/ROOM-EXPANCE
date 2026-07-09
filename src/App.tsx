@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Roommate, Expense, Profile } from './types';
 import { subscribeExpenses, getProfile } from './dbService';
+import { sendDiscordNotification } from './discordService';
 import UserSelector from './components/UserSelector';
 import Dashboard from './components/Dashboard';
 import CoinMeter from './components/CoinMeter';
@@ -96,6 +97,17 @@ export default function App() {
   };
 
   const handleLockUser = (user: Roommate) => {
+    sendDiscordNotification('userLoginLogout', {
+      title: `🔒 Profile Session Locked`,
+      description: `${user} has locked their roommate profile.`,
+      category: 'security',
+      color: 10181046, // Purple
+      fields: [
+        { name: 'Roommate Profile', value: user, inline: true },
+        { name: 'Status', value: '🔒 Session Locked', inline: true }
+      ]
+    }, user);
+
     setUnlockedUsers((prev) => {
       const updated = { ...prev, [user]: false };
       sessionStorage.removeItem(`unlocked_${user}`);
@@ -359,6 +371,7 @@ export default function App() {
       {isAdminOpen && (
         <AdminPanelModal 
           expenses={expenses}
+          currentUser={currentUser}
           onClose={() => setIsAdminOpen(false)}
           onRefreshNicknames={loadNicknames}
         />

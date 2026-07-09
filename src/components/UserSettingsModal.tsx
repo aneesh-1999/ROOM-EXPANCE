@@ -95,7 +95,7 @@ export default function UserSettingsModal({
         phone: phone.trim()
       };
 
-      await updateProfile(currentUser, updates);
+      await updateProfile(currentUser, updates, currentUser);
       setSuccessMsg('Profile settings updated successfully!');
       onProfileUpdated();
       // Update local state
@@ -142,7 +142,7 @@ export default function UserSettingsModal({
 
     setIsSaving(true);
     try {
-      await updateProfile(currentUser, { password: newPassword });
+      await updateProfile(currentUser, { password: newPassword }, currentUser);
       setSuccessMsg('Password changed successfully!');
       
       // Clear password form

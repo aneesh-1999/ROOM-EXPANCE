@@ -262,9 +262,36 @@
         }
       },
       "required": ["user", "name", "amount", "category", "dueDate", "frequency", "currency", "reminderActive"]
+    },
+    "DiscordSettings": {
+      "title": "DiscordSettings",
+      "description": "Discord push notification configurations and routing webhooks.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "webhookUrl": {
+          "type": "string"
+        },
+        "customPrefix": {
+          "type": "string"
+        },
+        "messageFormat": {
+          "type": "string",
+          "enum": ["embed", "text"]
+        }
+      },
+      "required": ["enabled", "webhookUrl", "messageFormat", "customPrefix"]
     }
   },
   "firestore": {
+    "discord_settings": {
+      "schema": {
+        "$ref": "#/entities/DiscordSettings"
+      },
+      "description": "Configuration document for sending Discord push notifications."
+    },
     "expenses": {
       "schema": {
         "$ref": "#/entities/Expense"

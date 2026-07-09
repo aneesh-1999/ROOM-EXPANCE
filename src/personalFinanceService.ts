@@ -9,7 +9,8 @@ import {
   serverTimestamp,
   updateDoc,
   getDocs,
-  writeBatch
+  writeBatch,
+  getDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { 
@@ -20,6 +21,7 @@ import {
   Roommate,
   PersonalTxType
 } from './types';
+import { sendDiscordNotification } from './discordService';
 
 const ACCOUNTS_COLLECTION = 'personal_accounts';
 const TRANSACTIONS_COLLECTION = 'personal_transactions';
@@ -106,20 +108,67 @@ export async function addAccount(account: Omit<PersonalAccount, 'id' | 'createdA
     createdAt: new Date().toISOString()
   });
   const docRef = await addDoc(accountsRef, payload);
+
+  sendDiscordNotification('accountChanges', {
+    title: `🏦 Private Account Created`,
+    description: `A new private wallet/vault has been registered.`,
+    category: 'security',
+    color: 3447003, // Blue
+    fields: [
+      { name: 'Wallet Name', value: account.name, inline: true },
+      { name: 'Type', value: account.type, inline: true },
+      { name: 'Initial Balance', value: `${account.currency} ${account.balance}`, inline: true },
+      { name: 'Profile Owner', value: account.user, inline: true }
+    ]
+  }, account.user);
+
   return docRef.id;
 }
 
 // Update account
 export async function updateAccount(id: string, updates: Partial<Omit<PersonalAccount, 'id' | 'user'>>) {
   const docRef = doc(db, ACCOUNTS_COLLECTION, id);
+  const docSnap = await getDoc(docRef);
   const payload = cleanPayload(updates);
   await updateDoc(docRef, payload);
+
+  if (docSnap.exists()) {
+    const original = docSnap.data();
+    sendDiscordNotification('accountChanges', {
+      title: `🏦 Private Account Updated`,
+      description: `A private wallet/vault has been modified.`,
+      category: 'security',
+      color: 3447003, // Blue
+      fields: [
+        { name: 'Wallet', value: original.name || 'Untitled', inline: true },
+        { name: 'Updates', value: Object.keys(updates).join(', '), inline: true },
+        { name: 'Profile Owner', value: original.user, inline: true }
+      ]
+    }, original.user);
+  }
 }
 
 // Delete account
 export async function deleteAccount(id: string) {
   const docRef = doc(db, ACCOUNTS_COLLECTION, id);
+  const docSnap = await getDoc(docRef);
   await deleteDoc(docRef);
+
+  if (docSnap.exists()) {
+    const original = docSnap.data();
+    sendDiscordNotification('accountChanges', {
+      title: `🏦 Private Account Deleted`,
+      description: `A private budget account has been removed.`,
+      category: 'security',
+      color: 15158332, // Red
+      fields: [
+        { name: 'Wallet Name', value: original.name || 'Untitled', inline: true },
+        { name: 'Type', value: original.type || 'Unknown', inline: true },
+        { name: 'Final Balance', value: `${original.currency || 'EUR'} ${original.balance || 0}`, inline: true },
+        { name: 'Profile Owner', value: original.user, inline: true }
+      ]
+    }, original.user);
+  }
 }
 
 // ---------------------------------------------
@@ -196,6 +245,22 @@ export async function addTransaction(
   });
 
   await batch.commit();
+
+  sendDiscordNotification('financeUpdates', {
+    title: `📊 Private Transaction Logged`,
+    description: `A personal finance transaction has been recorded.`,
+    category: 'transactions',
+    color: tx.type === 'income' ? 3066993 : 15158332, // Green for income, Red for expense
+    fields: [
+      { name: 'Title', value: tx.title, inline: true },
+      { name: 'Amount', value: `${tx.currency} ${tx.amount.toFixed(2)}`, inline: true },
+      { name: 'Type', value: tx.type.toUpperCase(), inline: true },
+      { name: 'Category', value: tx.category, inline: true },
+      { name: 'Account Affected', value: account.name, inline: true },
+      { name: 'Profile Owner', value: tx.user, inline: true }
+    ]
+  }, tx.user);
+
   return txRef.id;
 }
 
@@ -226,6 +291,19 @@ export async function deleteTransaction(tx: PersonalTransaction, account: Person
   });
 
   await batch.commit();
+
+  sendDiscordNotification('financeUpdates', {
+    title: `📊 Private Transaction Deleted`,
+    description: `A personal transaction has been deleted.`,
+    category: 'transactions',
+    color: 10181046, // Purple
+    fields: [
+      { name: 'Title', value: tx.title, inline: true },
+      { name: 'Amount', value: `${tx.currency} ${tx.amount.toFixed(2)}`, inline: true },
+      { name: 'Category', value: tx.category, inline: true },
+      { name: 'Profile Owner', value: tx.user, inline: true }
+    ]
+  }, tx.user);
 }
 
 
@@ -269,6 +347,20 @@ export async function addSavingsGoal(goal: Omit<SavingsGoal, 'id' | 'createdAt'>
     createdAt: new Date().toISOString()
   });
   const docRef = await addDoc(goalsRef, payload);
+
+  sendDiscordNotification('savingsGoalsChanges', {
+    title: `🎯 Savings Goal Initiated`,
+    description: `A new savings goal benchmark has been created.`,
+    category: 'savings',
+    color: 16753920, // Orange
+    fields: [
+      { name: 'Goal Name', value: goal.name, inline: true },
+      { name: 'Target Amount', value: `${goal.currency} ${goal.targetAmount}`, inline: true },
+      { name: 'Deadline', value: goal.deadline || 'None', inline: true },
+      { name: 'Profile Owner', value: goal.user, inline: true }
+    ]
+  }, goal.user);
+
   return docRef.id;
 }
 
@@ -282,8 +374,9 @@ export async function contributeToSavingsGoal(
 
   // Update savings goal
   const goalRef = doc(db, SAVINGS_COLLECTION, goal.id);
+  const newAmount = goal.currentAmount + amount;
   batch.update(goalRef, {
-    currentAmount: goal.currentAmount + amount
+    currentAmount: newAmount
   });
 
   // If a source account is specified, subtract from account and log transaction
@@ -310,12 +403,45 @@ export async function contributeToSavingsGoal(
   }
 
   await batch.commit();
+
+  // Check for goal completion!
+  const isCompleted = newAmount >= goal.targetAmount;
+  sendDiscordNotification('savingsGoalsChanges', {
+    title: isCompleted ? `🎉 SAVINGS GOAL COMPLETED!` : `📈 Savings Goal Contribution`,
+    description: isCompleted 
+      ? `Congratulations! The savings goal "${goal.name}" has reached its destination target!` 
+      : `An amount has been saved towards the goal "${goal.name}".`,
+    category: 'savings',
+    color: isCompleted ? 3066993 : 16753920, // Green if completed, orange if contributed
+    fields: [
+      { name: 'Goal Name', value: goal.name, inline: true },
+      { name: 'Contributed', value: `${goal.currency} ${amount}`, inline: true },
+      { name: 'Progress', value: `${goal.currency} ${newAmount} / ${goal.targetAmount}`, inline: true },
+      { name: 'Profile Owner', value: goal.user, inline: true }
+    ]
+  }, goal.user);
 }
 
 // Delete Savings Goal
 export async function deleteSavingsGoal(id: string) {
   const docRef = doc(db, SAVINGS_COLLECTION, id);
+  const docSnap = await getDoc(docRef);
   await deleteDoc(docRef);
+
+  if (docSnap.exists()) {
+    const original = docSnap.data();
+    sendDiscordNotification('savingsGoalsChanges', {
+      title: `🗑️ Savings Goal Terminated`,
+      description: `A savings benchmark goal has been deleted.`,
+      category: 'savings',
+      color: 15158332, // Red
+      fields: [
+        { name: 'Goal Name', value: original.name || 'Untitled', inline: true },
+        { name: 'Target Amount', value: `${original.currency || 'EUR'} ${original.targetAmount || 0}`, inline: true },
+        { name: 'Profile Owner', value: original.user, inline: true }
+      ]
+    }, original.user);
+  }
 }
 
 
@@ -361,13 +487,44 @@ export async function addRecurringBill(bill: Omit<RecurringBill, 'id'>) {
   const billsRef = collection(db, RECURRING_COLLECTION);
   const payload = cleanPayload(bill);
   const docRef = await addDoc(billsRef, payload);
+
+  sendDiscordNotification('financeUpdates', {
+    title: `📅 Recurring Bill Added`,
+    description: `A new recurring expense reminder has been registered.`,
+    category: 'bills',
+    color: 15105570, // Orange
+    fields: [
+      { name: 'Bill Name', value: bill.name, inline: true },
+      { name: 'Amount', value: `${bill.currency} ${bill.amount}`, inline: true },
+      { name: 'Due Date', value: `Day ${bill.dueDate} of the month`, inline: true },
+      { name: 'Frequency', value: bill.frequency, inline: true },
+      { name: 'Profile Owner', value: bill.user, inline: true }
+    ]
+  }, bill.user);
+
   return docRef.id;
 }
 
 // Delete Recurring Bill
 export async function deleteRecurringBill(id: string) {
   const docRef = doc(db, RECURRING_COLLECTION, id);
+  const docSnap = await getDoc(docRef);
   await deleteDoc(docRef);
+
+  if (docSnap.exists()) {
+    const original = docSnap.data();
+    sendDiscordNotification('financeUpdates', {
+      title: `🗑️ Recurring Bill Deleted`,
+      description: `A recurring bill reminder has been removed.`,
+      category: 'bills',
+      color: 15158332, // Red
+      fields: [
+        { name: 'Bill Name', value: original.name || 'Untitled', inline: true },
+        { name: 'Amount', value: `${original.currency || 'EUR'} ${original.amount || 0}`, inline: true },
+        { name: 'Profile Owner', value: original.user, inline: true }
+      ]
+    }, original.user);
+  }
 }
 
 // Pay Recurring Bill (deducts from specified account, records personal transaction, updates lastPaid)
@@ -406,4 +563,17 @@ export async function payRecurringBill(
   });
 
   await batch.commit();
+
+  sendDiscordNotification('financeUpdates', {
+    title: `✅ Recurring Bill Paid`,
+    description: `A recurring expense reminder has been successfully paid and logged.`,
+    category: 'bills',
+    color: 3066993, // Green
+    fields: [
+      { name: 'Bill Paid', value: bill.name, inline: true },
+      { name: 'Amount Paid', value: `${bill.currency} ${bill.amount.toFixed(2)}`, inline: true },
+      { name: 'Source Account', value: account.name, inline: true },
+      { name: 'Profile Owner', value: bill.user, inline: true }
+    ]
+  }, bill.user);
 }

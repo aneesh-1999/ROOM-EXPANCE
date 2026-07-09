@@ -87,7 +87,7 @@ export default function ExpenseHistory({ expenses, currentUser, onDeleteSuccess,
   const handleApprove = async (id: string) => {
     setApprovingId(id);
     try {
-      await confirmExpense(id);
+      await confirmExpense(id, currentUser);
       onDeleteSuccess();
     } catch (error) {
       console.error("Failed to confirm: ", error);
@@ -159,7 +159,7 @@ export default function ExpenseHistory({ expenses, currentUser, onDeleteSuccess,
         onConfirm: async () => {
           setDeletingId(exp.id!);
           try {
-            await deleteExpense(exp.id!);
+            await deleteExpense(exp.id!, currentUser);
             onDeleteSuccess();
           } catch (error) {
             alert("Failed to delete transaction: " + error);
@@ -177,7 +177,7 @@ export default function ExpenseHistory({ expenses, currentUser, onDeleteSuccess,
         // Current user requested delete, clicking trash can cancels it
         setDeletingId(exp.id);
         try {
-          await cancelDeleteExpense(exp.id);
+          await cancelDeleteExpense(exp.id, currentUser);
           onDeleteSuccess();
         } catch (error) {
           alert("Failed to cancel deletion request: " + error);
@@ -194,7 +194,7 @@ export default function ExpenseHistory({ expenses, currentUser, onDeleteSuccess,
           onConfirm: async () => {
             setDeletingId(exp.id!);
             try {
-              await deleteExpense(exp.id!);
+              await deleteExpense(exp.id!, currentUser);
               onDeleteSuccess();
             } catch (error) {
               alert("Failed to approve deletion: " + error);
@@ -239,7 +239,7 @@ export default function ExpenseHistory({ expenses, currentUser, onDeleteSuccess,
       onConfirm: async () => {
         setDeletingId(id);
         try {
-          await deleteExpense(id);
+          await deleteExpense(id, currentUser);
           onDeleteSuccess();
         } catch (error) {
           alert("Failed to approve deletion: " + error);
@@ -253,7 +253,7 @@ export default function ExpenseHistory({ expenses, currentUser, onDeleteSuccess,
   const handleRejectDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      await cancelDeleteExpense(id);
+      await cancelDeleteExpense(id, currentUser);
       onDeleteSuccess();
     } catch (error) {
       alert("Failed to reject deletion request: " + error);

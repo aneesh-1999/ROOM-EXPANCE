@@ -30,5 +30,10 @@ service cloud.firestore {
     match /personal_recurring_bills/{billId} {
       allow read, write: if true;
     }
+
+    // Discord Settings
+    match /discord_settings/{settingsId} {
+      allow read, write: if true;
+    }
   }
 }
