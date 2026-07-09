@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Roommate, Expense, Profile } from './types';
-import { subscribeExpenses, getProfile, updateLoginLogLogout } from './dbService';
+import { subscribeExpenses, getProfile, updateLoginLogLogout, subscribeToSessionLog } from './dbService';
 import { sendDiscordNotification } from './discordService';
 import UserSelector from './components/UserSelector';
 import Dashboard from './components/Dashboard';
@@ -46,6 +46,12 @@ export default function App() {
     };
   });
 
+  // Keep track of active Firestore login log doc ID for real-time termination subscription
+  const [currentSessionLogId, setCurrentSessionLogId] = useState<string | null>(() => {
+    const savedRoommate = (localStorage.getItem('activeRoommate') as Roommate) || 'Ozric';
+    return sessionStorage.getItem(`login_log_doc_id_${savedRoommate}`) || sessionStorage.getItem('login_log_doc_id');
+  });
+
   // Display name nicknames
   const [nicknames, setNicknames] = useState<Record<Roommate, string>>({
     Ozric: 'Ozric',
@@ -86,6 +92,7 @@ export default function App() {
   const handleUserChange = (user: Roommate) => {
     setCurrentUser(user);
     localStorage.setItem('activeRoommate', user);
+    setCurrentSessionLogId(sessionStorage.getItem(`login_log_doc_id_${user}`) || sessionStorage.getItem('login_log_doc_id'));
   };
 
   const handleUnlockUser = (user: Roommate) => {
@@ -94,19 +101,23 @@ export default function App() {
       sessionStorage.setItem(`unlocked_${user}`, 'true');
       return updated;
     });
+    setCurrentSessionLogId(sessionStorage.getItem(`login_log_doc_id_${user}`) || sessionStorage.getItem('login_log_doc_id'));
   };
 
   const handleLockUser = (user: Roommate) => {
     // Session Duration calculation
-    const logDocId = sessionStorage.getItem('login_log_doc_id');
-    const loginTime = sessionStorage.getItem('login_time');
+    const logDocId = sessionStorage.getItem(`login_log_doc_id_${user}`) || sessionStorage.getItem('login_log_doc_id');
+    const loginTime = sessionStorage.getItem(`login_time_${user}`) || sessionStorage.getItem('login_time');
     if (logDocId && loginTime) {
       const durationSeconds = Math.floor((Date.now() - Number(loginTime)) / 1000);
       updateLoginLogLogout(logDocId, durationSeconds).catch(err => console.error("Error logging session duration:", err));
+      sessionStorage.removeItem(`login_log_doc_id_${user}`);
+      sessionStorage.removeItem(`login_time_${user}`);
       sessionStorage.removeItem('login_log_doc_id');
       sessionStorage.removeItem('login_time');
       sessionStorage.removeItem('current_session_id');
     }
+    setCurrentSessionLogId(null);
 
     sendDiscordNotification('userLoginLogout', {
       title: `🔒 Profile Session Locked`,
@@ -133,6 +144,35 @@ export default function App() {
       setIsAdminOpen(true);
     }
   };
+
+  // Real-time listener for active session termination (Kill session)
+  useEffect(() => {
+    if (!currentSessionLogId || !unlockedUsers[currentUser]) return;
+
+    const unsubscribe = subscribeToSessionLog(currentSessionLogId, (log) => {
+      if (log && log.logoutTime) {
+        console.warn(`[Security] Session ${currentSessionLogId} has been terminated.`);
+        
+        // Lock the profile immediately
+        setUnlockedUsers((prev) => {
+          const updated = { ...prev, [currentUser]: false };
+          sessionStorage.removeItem(`unlocked_${currentUser}`);
+          return updated;
+        });
+
+        sessionStorage.removeItem(`login_log_doc_id_${currentUser}`);
+        sessionStorage.removeItem(`login_time_${currentUser}`);
+        sessionStorage.removeItem('login_log_doc_id');
+        sessionStorage.removeItem('login_time');
+        sessionStorage.removeItem('current_session_id');
+
+        setErrorMsg('⚠️ Your active session has been terminated by an administrator.');
+        setCurrentSessionLogId(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [currentSessionLogId, currentUser, unlockedUsers[currentUser]]);
 
   // Real-time Firestore sync
   useEffect(() => {

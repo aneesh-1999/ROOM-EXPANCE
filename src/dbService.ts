@@ -576,4 +576,49 @@ export function subscribeLoginLogs(callback: (logs: LoginLog[]) => void, onError
   );
 }
 
+// Subscribe to a single session's real-time changes (for session termination / kill switch)
+export function subscribeToSessionLog(logId: string, callback: (log: LoginLog | null) => void) {
+  const docRef = doc(db, LOGIN_LOGS_COLLECTION, logId);
+  return onSnapshot(
+    docRef,
+    (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        callback({
+          id: docSnap.id,
+          userId: data.userId,
+          fullName: data.fullName,
+          email: data.email,
+          userRole: data.userRole,
+          status: data.status,
+          timestamp: data.timestamp ? (data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp)) : new Date(),
+          ipAddress: data.ipAddress || '',
+          country: data.country || '',
+          state: data.state || '',
+          city: data.city || '',
+          location: data.location || '',
+          deviceName: data.deviceName || '',
+          deviceType: data.deviceType || 'Desktop',
+          operatingSystem: data.operatingSystem || '',
+          browser: data.browser || '',
+          browserVersion: data.browserVersion || '',
+          screenResolution: data.screenResolution || '',
+          timeZone: data.timeZone || '',
+          language: data.language || '',
+          sessionId: data.sessionId || '',
+          logoutTime: data.logoutTime ? (data.logoutTime.toDate ? data.logoutTime.toDate() : new Date(data.logoutTime)) : null,
+          sessionDuration: data.sessionDuration || 0,
+          failureReason: data.failureReason || ''
+        });
+      } else {
+        callback(null);
+      }
+    },
+    (error) => {
+      console.error("Session log subscription error:", error);
+    }
+  );
+}
+
+
 

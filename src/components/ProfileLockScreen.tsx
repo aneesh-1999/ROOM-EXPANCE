@@ -329,7 +329,9 @@ export default function ProfileLockScreen({
       if (status === 'Success' && logId) {
         sessionStorage.setItem('current_session_id', sessionId);
         sessionStorage.setItem('login_log_doc_id', logId);
+        sessionStorage.setItem(`login_log_doc_id_${selectedUser}`, logId);
         sessionStorage.setItem('login_time', Date.now().toString());
+        sessionStorage.setItem(`login_time_${selectedUser}`, Date.now().toString());
         
         // Audit historic logins to notify of any new device/location parameters
         await checkForSuspiciousLogin(geo, dev);
