@@ -65,7 +65,7 @@ const EXPENSES_COLLECTION = 'expenses';
 // Subscribe to real-time changes in expenses
 export function subscribeExpenses(callback: (expenses: Expense[]) => void, onError?: (error: any) => void) {
   const expensesRef = collection(db, EXPENSES_COLLECTION);
-  const q = query(expensesRef, orderBy('timestamp', 'desc'));
+  const q = query(expensesRef);
 
   return onSnapshot(
     q,
@@ -94,6 +94,8 @@ export function subscribeExpenses(callback: (expenses: Expense[]) => void, onErr
           deleteRequestedBy: data.deleteRequestedBy || undefined
         });
       });
+      // Sort descending by timestamp in-memory to ensure new/null timestamps are placed at the top and not omitted
+      expenses.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
       callback(expenses);
     },
     (error) => {

@@ -91,7 +91,7 @@ export default function InsightsDashboard({
     let pawanOwes = 0;
 
     confirmedExpenses.forEach((exp) => {
-      if (exp.isSettlement) return;
+      if (exp.isCoin || exp.isSettlement) return;
       if (exp.paidBy === 'Ozric') {
         pawanOwes += exp.splitDetails?.PawanAmount || 0;
       } else if (exp.paidBy === 'Pawan') {

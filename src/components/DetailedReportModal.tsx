@@ -123,6 +123,7 @@ export default function DetailedReportModal({ expenses, currentUser, onClose, ni
 
   expenses.forEach((expense) => {
     if (expense.status === 'pending') return;
+    if (expense.isCoin) return; // Coin Meter contributions are NOT standard split expenses
     if (expense.paidBy === 'Ozric') {
       totalConfirmedPawanOwesOzric += expense.splitDetails.PawanAmount;
     } else if (expense.paidBy === 'Pawan') {

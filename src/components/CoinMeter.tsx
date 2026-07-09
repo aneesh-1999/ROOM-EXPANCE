@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Expense, Roommate, Profile } from '../types';
-import { logCoinInsertion } from '../dbService';
-import { Zap, HelpCircle, UserPlus, AlertCircle, Sparkles, Check } from 'lucide-react';
+import { logCoinInsertion, confirmExpense } from '../dbService';
+import { Zap, HelpCircle, AlertCircle, Sparkles, Check, Coins, Plus, Clock, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 
 interface CoinMeterProps {
   expenses: Expense[];
@@ -12,118 +12,233 @@ interface CoinMeterProps {
 }
 
 export default function CoinMeter({ expenses, currentUser, onLogSuccess, nicknames, profiles }: CoinMeterProps) {
-  const [loading, setLoading] = useState<number | null>(null); // holds coin value being inserted, e.g. 1 or 2
+  const [loading, setLoading] = useState<number | null>(null); // Quick coin insert loading state
+  const [customAmount, setCustomAmount] = useState('');
+  const [customLoading, setCustomLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null); // ID of confirming coin
 
   const currentUserProfile = profiles?.[currentUser];
   const preferredCoinCategory = currentUserProfile?.quickCoinCategory || 'Electricity (Coins)';
 
-  // Compute stats for current calendar month
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  // Helper to robustly parse timestamps
+  const parseExpenseDate = (timestamp: any): Date => {
+    if (!timestamp) return new Date();
+    if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') return timestamp.toDate();
+    const d = new Date(timestamp);
+    return isNaN(d.getTime()) ? new Date() : d;
+  };
 
-  const coinExpensesThisMonth = expenses.filter((exp) => {
-    if (!exp.isCoin || exp.status === 'pending') return false;
-    const date = new Date(exp.timestamp);
-    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+  // 1. FILTER COIN TRANSACTIONS
+  // All confirmed coins (actually contributed and approved)
+  const confirmedCoins = expenses.filter((exp) => {
+    return exp.isCoin && exp.status !== 'pending';
   });
 
-  const ozricCoinTotal = coinExpensesThisMonth
+  // Pending coins (added but awaiting approval)
+  const pendingCoins = expenses.filter((exp) => {
+    return exp.isCoin && exp.status === 'pending';
+  });
+
+  // All coin logs sorted by date descending for the history log
+  const allCoinLogs = expenses
+    .filter((exp) => exp.isCoin)
+    .sort((a, b) => {
+      const dateA = parseExpenseDate(a.timestamp);
+      const dateB = parseExpenseDate(b.timestamp);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+  // 2. CALCULATE RUNNING BALANCES
+  const ozricCoinTotal = confirmedCoins
     .filter((exp) => exp.paidBy === 'Ozric')
     .reduce((sum, exp) => sum + exp.amount, 0);
 
-  const pawanCoinTotal = coinExpensesThisMonth
+  const pawanCoinTotal = confirmedCoins
     .filter((exp) => exp.paidBy === 'Pawan')
     .reduce((sum, exp) => sum + exp.amount, 0);
 
-  const totalCoinSpend = ozricCoinTotal + pawanCoinTotal;
+  const totalCoinsAdded = ozricCoinTotal + pawanCoinTotal;
 
-  // Determine whose turn is next
-  let nextTurn: Roommate | 'Either' = 'Either';
-  let diff = 0;
+  // 3. MEMBER BALANCE DIFFERENCES (WHO NEEDS TO CATCH UP)
+  // Formula: Difference = Higher Contribution - Lower Contribution
+  // The member with the lower contribution owes the difference to the higher contributor
+  let higherContributor: Roommate | null = null;
+  let lowerContributor: Roommate | null = null;
+  let coinDiff = 0;
+
   if (ozricCoinTotal > pawanCoinTotal) {
-    nextTurn = 'Pawan';
-    diff = ozricCoinTotal - pawanCoinTotal;
+    higherContributor = 'Ozric';
+    lowerContributor = 'Pawan';
+    coinDiff = ozricCoinTotal - pawanCoinTotal;
   } else if (pawanCoinTotal > ozricCoinTotal) {
-    nextTurn = 'Ozric';
-    diff = pawanCoinTotal - ozricCoinTotal;
+    higherContributor = 'Pawan';
+    lowerContributor = 'Ozric';
+    coinDiff = pawanCoinTotal - ozricCoinTotal;
   }
 
-  const handleInsert = async (value: number) => {
+  // Handle Preset Fast-Log Insertions (€1, €2, €5, €10)
+  const handleInsertPreset = async (value: number) => {
     setLoading(value);
+    setErrorMsg('');
+    setSuccessMsg('');
     try {
       await logCoinInsertion(currentUser, value, currentUser, preferredCoinCategory);
       setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 3000);
+      setSuccessMsg(`Successfully logged €${value.toFixed(2)} coin contribution!`);
+      setTimeout(() => {
+        setShowConfetti(false);
+        setSuccessMsg('');
+      }, 4000);
       onLogSuccess();
-    } catch (error) {
-      alert("Failed to log coin insertion: " + error);
+    } catch (error: any) {
+      setErrorMsg("Failed to log preset: " + (error?.message || error));
     } finally {
       setLoading(null);
     }
   };
 
-  // Percent calculation for the visual tracker bar
-  const totalBoth = ozricCoinTotal + pawanCoinTotal;
-  const ozricPercent = totalBoth > 0 ? (ozricCoinTotal / totalBoth) * 100 : 50;
-  const pawanPercent = totalBoth > 0 ? (pawanCoinTotal / totalBoth) * 100 : 50;
+  // Handle Custom Insertions
+  const handleCustomInsertSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+    const parsed = parseFloat(customAmount);
+    if (isNaN(parsed) || parsed <= 0) {
+      setErrorMsg("Please enter a valid positive number greater than 0.");
+      return;
+    }
 
-  const nextTurnLabel = nextTurn === 'Either' ? 'Either' : (nicknames[nextTurn] || nextTurn);
+    setCustomLoading(true);
+    try {
+      await logCoinInsertion(currentUser, parsed, currentUser, preferredCoinCategory);
+      setCustomAmount('');
+      setShowConfetti(true);
+      setSuccessMsg(`Successfully logged custom €${parsed.toFixed(2)} coin contribution!`);
+      setTimeout(() => {
+        setShowConfetti(false);
+        setSuccessMsg('');
+      }, 4000);
+      onLogSuccess();
+    } catch (error: any) {
+      setErrorMsg("Failed to log contribution: " + (error?.message || error));
+    } finally {
+      setCustomLoading(false);
+    }
+  };
+
+  // Handle Inline Coin Confirmation
+  const handleConfirmCoin = async (id: string) => {
+    if (!id) return;
+    setActionLoading(id);
+    setErrorMsg('');
+    try {
+      await confirmExpense(id, currentUser);
+      setSuccessMsg("Contribution successfully approved and added to balance!");
+      setTimeout(() => setSuccessMsg(''), 4000);
+      onLogSuccess();
+    } catch (error: any) {
+      setErrorMsg("Failed to approve contribution: " + (error?.message || error));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Percent calculation for the visual tracker bar
+  const ozricPercent = totalCoinsAdded > 0 ? (ozricCoinTotal / totalCoinsAdded) * 100 : 50;
+  const pawanPercent = totalCoinsAdded > 0 ? (pawanCoinTotal / totalCoinsAdded) * 100 : 50;
+
+  const ozricName = nicknames.Ozric || 'Ozric';
+  const pawanName = nicknames.Pawan || 'Pawan';
 
   return (
     <div className="bg-white border-4 border-slate-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] relative overflow-hidden">
-      <div className="flex items-center justify-between border-b-4 border-slate-100 pb-4 mb-6">
+      
+      {/* HEADER SECTION */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b-4 border-slate-100 pb-4 mb-6 gap-3">
         <div className="flex items-center gap-3">
           <div className="bg-amber-100 text-amber-600 p-2.5 rounded-2xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
-            <Zap className="w-5 h-5 fill-amber-400/20 animate-pulse text-amber-600" />
+            <Coins className="w-5 h-5 fill-amber-400/20 animate-pulse text-amber-600" />
           </div>
           <div>
             <h3 className="text-lg font-black font-display tracking-tight text-slate-900">Coin Meter Tracker</h3>
-            <p className="text-xs text-slate-500 font-medium">Shared electricity coin logs for {new Date().toLocaleString('default', { month: 'long' })}</p>
+            <p className="text-xs text-slate-500 font-medium">Shared electricity fund contributions</p>
           </div>
         </div>
-        <div className="bg-amber-400 text-slate-900 text-xs font-mono font-black px-3 py-1.5 rounded-full border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
-          Total: €{totalCoinSpend.toFixed(2)}
+        <div className="self-start sm:self-center bg-amber-400 text-slate-900 text-xs font-mono font-black px-3.5 py-2 rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
+          Total Contributed: €{totalCoinsAdded.toFixed(2)}
         </div>
       </div>
 
-      {/* COIN DUTY TRACKER VISUAL */}
+      {/* ERROR & SUCCESS MESSAGES */}
+      {errorMsg && (
+        <div className="mb-4 p-3 bg-red-50 border-2 border-red-500 rounded-xl flex items-center gap-2 text-xs text-red-800 font-bold">
+          <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+      {successMsg && (
+        <div className="mb-4 p-3 bg-emerald-50 border-2 border-emerald-500 rounded-xl flex items-center gap-2 text-xs text-emerald-800 font-bold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+
+      {/* RUNNING BALANCE STATS */}
       <div className="space-y-4 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-            <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest font-mono">Duty Split</span>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-black text-slate-700 bg-teal-50 border border-teal-300 px-2.5 py-1 rounded-lg">{nicknames.Ozric}: €{ozricCoinTotal.toFixed(2)}</span>
-              <span className="text-slate-400">•</span>
-              <span className="text-xs font-black text-slate-700 bg-pink-50 border border-pink-300 px-2.5 py-1 rounded-lg">{nicknames.Pawan}: €{pawanCoinTotal.toFixed(2)}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Running totals */}
+          <div className="bg-slate-50 border-2 border-slate-900 rounded-2xl p-4 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
+            <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest font-mono">Running Balances</span>
+            <div className="space-y-1.5 mt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700">{ozricName}</span>
+                <span className="text-xs font-mono font-black text-slate-900">€{ozricCoinTotal.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700">{pawanName}</span>
+                <span className="text-xs font-mono font-black text-slate-900">€{pawanCoinTotal.toFixed(2)}</span>
+              </div>
             </div>
           </div>
-          <div className="text-left sm:text-right">
-            <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest font-mono">Next Up</span>
-            <div className="mt-1">
-              {nextTurn === 'Either' ? (
-                <span className="text-xs font-black text-slate-900 bg-amber-200 px-2.5 py-1.5 rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
-                  Even (Either)
-                </span>
+
+          {/* Settle Status / Who is behind */}
+          <div className="bg-indigo-50/45 border-2 border-slate-900 rounded-2xl p-4 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-center">
+            <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest font-mono">Catch-Up Status</span>
+            <div className="mt-2">
+              {coinDiff === 0 ? (
+                <div className="flex items-center gap-1.5 text-xs font-black text-slate-850">
+                  <Check className="w-4 h-4 text-emerald-600 stroke-[3px]" />
+                  <span>Even contributions! (Either can insert)</span>
+                </div>
               ) : (
-                <span className={`text-xs font-black px-2.5 py-1.5 rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] flex items-center gap-1.5 ${
-                  nextTurn === currentUser
-                    ? 'text-slate-900 bg-amber-300'
-                    : 'text-slate-900 bg-violet-300'
-                }`}>
-                  <Sparkles className="w-3.5 h-3.5 fill-current text-slate-900" />
-                  {nextTurnLabel}'s turn (Diff: €{diff.toFixed(2)})
-                </span>
+                <div className="space-y-1">
+                  <p className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 fill-amber-400 text-amber-600" />
+                    <span>
+                      {lowerContributor === 'Ozric' ? ozricName : pawanName} is behind
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
+                    Needs to contribute <strong className="text-slate-900 font-mono">€{coinDiff.toFixed(2)}</strong> to catch up with {higherContributor === 'Ozric' ? ozricName : pawanName}.
+                  </p>
+                </div>
               )}
             </div>
           </div>
+
         </div>
 
-        {/* PROGRESS BAR BAR CHART */}
-        <div className="h-6 bg-slate-100 rounded-2xl overflow-hidden flex border-2 border-slate-900">
-          {totalBoth === 0 ? (
+        {/* PROGRESS BAR */}
+        <div className="h-6 bg-slate-100 rounded-2xl overflow-hidden flex border-2 border-slate-900 relative">
+          {totalCoinsAdded === 0 ? (
             <div className="w-full h-full bg-slate-50 text-[10px] text-slate-500 flex items-center justify-center font-black uppercase tracking-wider">
-              No coins logged this month
+              No coin contributions logged yet
             </div>
           ) : (
             <>
@@ -131,66 +246,174 @@ export default function CoinMeter({ expenses, currentUser, onLogSuccess, nicknam
                 className="h-full bg-teal-400 border-r-2 border-slate-900 transition-all duration-500 relative flex items-center"
                 style={{ width: `${ozricPercent}%` }}
               >
-                <span className="absolute left-2 text-[10px] font-black text-slate-900 truncate uppercase tracking-tight">
-                  {ozricPercent.toFixed(0)}% {nicknames.Ozric}
-                </span>
+                {ozricPercent > 12 && (
+                  <span className="absolute left-2.5 text-[10px] font-black text-slate-900 truncate uppercase tracking-tight">
+                    {ozricName} ({ozricPercent.toFixed(0)}%)
+                  </span>
+                )}
               </div>
               <div 
                 className="h-full bg-pink-400 transition-all duration-500 relative flex items-center justify-end"
                 style={{ width: `${pawanPercent}%` }}
               >
-                <span className="absolute right-2 text-[10px] font-black text-slate-900 truncate uppercase tracking-tight">
-                  {nicknames.Pawan} {pawanPercent.toFixed(0)}%
-                </span>
+                {pawanPercent > 12 && (
+                  <span className="absolute right-2.5 text-[10px] font-black text-slate-900 truncate uppercase tracking-tight">
+                    ({pawanPercent.toFixed(0)}%) {pawanName}
+                  </span>
+                )}
               </div>
             </>
           )}
         </div>
       </div>
 
-      {/* QUICK LOG BUTTONS */}
-      <div className="bg-indigo-50/50 rounded-2xl p-4 border-2 border-slate-900">
-        <div className="flex items-center justify-between mb-3.5">
-          <p className="text-xs font-bold text-slate-700">
-            Log coin insertion for <strong className="text-indigo-600 underline decoration-2">{nicknames[currentUser] || currentUser}</strong>:
-          </p>
-          {showConfetti && (
-            <span className="text-[11px] text-emerald-600 font-black animate-bounce flex items-center gap-1">
-              <Check className="w-3.5 h-3.5 stroke-[3px]" /> Inserted!
-            </span>
-          )}
+      {/* ADD CONTRIBUTION SECTION */}
+      <div className="bg-indigo-50/50 rounded-2xl p-5 border-2 border-slate-900 space-y-4">
+        <div>
+          <h4 className="text-xs font-black text-indigo-900 uppercase tracking-wide">Add Money to Coin Meter</h4>
+          <p className="text-[11px] text-slate-500 font-medium mt-0.5">Logged contributions are credited directly to your running total.</p>
         </div>
-        
-        <div className="grid grid-cols-2 gap-3.5">
-          <button
-            id="btn-coin-1"
-            disabled={loading !== null}
-            onClick={() => handleInsert(1)}
-            className="relative overflow-hidden group py-4 rounded-2xl border-2 border-slate-900 text-slate-900 bg-white font-black transition-all duration-300 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] disabled:opacity-50 flex flex-col items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <div className="w-12 h-12 rounded-full border-2 border-slate-900 bg-amber-400 text-slate-900 flex items-center justify-center text-lg font-black shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] group-hover:scale-105 transition-all">
-              €1
-            </div>
-            <span className="text-xs text-slate-700 font-bold">
-              {loading === 1 ? 'Logging...' : 'Insert €1'}
-            </span>
-          </button>
 
-          <button
-            id="btn-coin-2"
-            disabled={loading !== null}
-            onClick={() => handleInsert(2)}
-            className="relative overflow-hidden group py-4 rounded-2xl border-2 border-slate-900 text-slate-900 bg-white font-black transition-all duration-300 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] disabled:opacity-50 flex flex-col items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <div className="w-12 h-12 rounded-full border-2 border-slate-900 bg-amber-400 text-slate-900 flex items-center justify-center text-lg font-black shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] group-hover:scale-105 transition-all">
-              €2
-            </div>
-            <span className="text-xs text-slate-700 font-bold">
-              {loading === 2 ? 'Logging...' : 'Insert €2'}
-            </span>
-          </button>
+        {/* Quick presets */}
+        <div className="space-y-1.5">
+          <label className="text-[9px] text-slate-500 font-black uppercase tracking-widest font-mono">Quick Preset Coins</label>
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 5, 10, 20].map((val) => (
+              <button
+                key={val}
+                type="button"
+                id={`btn-preset-coin-${val}`}
+                disabled={loading !== null || customLoading}
+                onClick={() => handleInsertPreset(val)}
+                className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 text-xs font-extrabold rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer disabled:opacity-50"
+              >
+                {loading === val ? '...' : `+ €${val}`}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Custom manual contribution */}
+        <form onSubmit={handleCustomInsertSubmit} className="space-y-1.5 pt-1">
+          <label className="text-[9px] text-slate-500 font-black uppercase tracking-widest font-mono block">Log Custom Amount</label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-black font-mono">€</span>
+              <input
+                type="number"
+                step="any"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                placeholder="Custom contribution (e.g. 13.00)"
+                className="w-full bg-white border-2 border-slate-900 rounded-xl pl-7 pr-3 py-2 text-xs text-slate-800 font-mono font-bold outline-none shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] focus:bg-white"
+              />
+            </div>
+            <button
+              type="submit"
+              id="btn-coin-submit-custom"
+              disabled={loading !== null || customLoading || !customAmount}
+              className="px-4 py-2 bg-indigo-600 text-white text-xs font-black tracking-wide uppercase rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] hover:bg-indigo-700 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>{customLoading ? 'Saving...' : 'Add'}</span>
+            </button>
+          </div>
+        </form>
       </div>
+
+      {/* COLLAPSIBLE CONTRIBUTIONS LOG */}
+      <div className="mt-5 border-t-2 border-slate-100 pt-4">
+        <button
+          type="button"
+          id="btn-toggle-coin-history"
+          onClick={() => setShowHistory(!showHistory)}
+          className="w-full flex items-center justify-between text-xs font-black text-slate-700 hover:text-slate-900 cursor-pointer py-1.5 px-1 bg-slate-50 rounded-xl border-2 border-slate-900/5 transition"
+        >
+          <div className="flex items-center gap-1.5 pl-2">
+            <Clock className="w-3.5 h-3.5 text-slate-500" />
+            <span>Contribution Logs History ({allCoinLogs.length})</span>
+            {pendingCoins.length > 0 && (
+              <span className="bg-amber-100 text-amber-850 text-[9px] font-black px-1.5 py-0.5 rounded-full border border-amber-300">
+                {pendingCoins.length} Action Needed
+              </span>
+            )}
+          </div>
+          <span className="pr-2">
+            {showHistory ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </span>
+        </button>
+
+        {showHistory && (
+          <div className="mt-3.5 space-y-2 max-h-60 overflow-y-auto pr-1">
+            {allCoinLogs.length === 0 ? (
+              <p className="text-center text-[11px] text-slate-400 py-4 font-medium">No coins or meter contributions have been logged yet.</p>
+            ) : (
+              allCoinLogs.map((log) => {
+                const date = parseExpenseDate(log.timestamp);
+                const formattedTime = date.toLocaleDateString('default', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                }) + ' at ' + date.toLocaleTimeString('default', {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+
+                const payerName = nicknames[log.paidBy] || log.paidBy;
+                const isPending = log.status === 'pending';
+
+                return (
+                  <div 
+                    key={log.id} 
+                    className={`p-3 rounded-xl border-2 text-slate-800 flex items-center justify-between gap-3 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] transition duration-200 ${
+                      isPending ? 'bg-amber-50/70 border-amber-300' : 'bg-slate-50 border-slate-900/10'
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-extrabold text-slate-900">{payerName}</span>
+                        <span className="text-[10px] font-semibold text-slate-500 font-mono">contributed</span>
+                        <span className="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                          €{log.amount.toFixed(2)}
+                        </span>
+                        {isPending ? (
+                          <span className="text-[9px] font-black uppercase bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300">
+                            Pending
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-300 flex items-center gap-0.5">
+                            <Check className="w-2.5 h-2.5 stroke-[3px]" /> Confirmed
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-medium">{formattedTime}</p>
+                    </div>
+
+                    {/* Pending Actions */}
+                    {isPending && (
+                      <div className="shrink-0">
+                        {log.createdBy === currentUser ? (
+                          <span className="text-[9px] text-slate-400 font-mono font-medium">Awaiting {nicknames[currentUser === 'Ozric' ? 'Pawan' : 'Ozric']}</span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={actionLoading !== null}
+                            onClick={() => handleConfirmCoin(log.id!)}
+                            className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-black uppercase tracking-wider rounded border border-slate-950 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] cursor-pointer disabled:opacity-50"
+                          >
+                            {actionLoading === log.id ? '...' : 'Approve'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

@@ -18,6 +18,7 @@ export default function SettleUpModal({ expenses, currentUser, onClose, onSucces
 
   expenses.forEach((expense) => {
     if (expense.status === 'pending') return;
+    if (expense.isCoin) return; // Coin Meter contributions are NOT standard split expenses
     if (expense.paidBy === 'Ozric') {
       totalPawanOwesOzric += expense.splitDetails.PawanAmount;
     } else if (expense.paidBy === 'Pawan') {
