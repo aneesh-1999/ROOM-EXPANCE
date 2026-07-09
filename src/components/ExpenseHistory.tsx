@@ -280,14 +280,16 @@ export default function ExpenseHistory({ expenses, currentUser, onDeleteSuccess,
 
         <div className="grid grid-cols-1 gap-3">
           <div className="space-y-1">
-            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest font-mono">Filter by Month</label>
+            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest font-mono flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 stroke-[2.5]" /> Filter by Month
+            </label>
             <select
               id="select-filter-month"
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
               className="w-full bg-slate-50 border-2 border-slate-900 rounded-xl px-3 py-2.5 text-xs text-slate-800 outline-none focus:bg-white transition font-bold"
             >
-              <option value="all">📅 All Calendar Months</option>
+              <option value="all">All Calendar Months</option>
               {uniqueMonths.map((m) => (
                 <option key={m.value} value={m.value}>{m.label}</option>
               ))}
@@ -295,21 +297,23 @@ export default function ExpenseHistory({ expenses, currentUser, onDeleteSuccess,
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest font-mono">Filter by Category</label>
+            <label className="text-[10px] text-slate-500 font-black uppercase tracking-widest font-mono flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 stroke-[2.5]" /> Filter by Category
+            </label>
             <select
               id="select-filter-category"
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
               className="w-full bg-slate-50 border-2 border-slate-900 rounded-xl px-3 py-2.5 text-xs text-slate-800 outline-none focus:bg-white transition font-bold"
             >
-              <option value="all">📁 All Expense Categories</option>
-              <option value="Shared Groceries">🛒 Shared Groceries</option>
-              <option value="Household Supplies">✨ Household Supplies</option>
-              <option value="Rent">🏠 Rent</option>
-              <option value="Electricity (Coins)">⚡ Electricity (Coins)</option>
-              <option value="Internet/Wi-Fi">🌐 Internet/Wi-Fi</option>
-              <option value="Takeout/Delivery">🍔 Takeout/Delivery</option>
-              <option value="Other">⚙️ Other</option>
+              <option value="all">All Expense Categories</option>
+              <option value="Shared Groceries">Shared Groceries</option>
+              <option value="Household Supplies">Household Supplies</option>
+              <option value="Rent">Rent</option>
+              <option value="Electricity (Coins)">Electricity (Coins)</option>
+              <option value="Internet/Wi-Fi">Internet/Wi-Fi</option>
+              <option value="Takeout/Delivery">Takeout/Delivery</option>
+              <option value="Other">Other</option>
             </select>
           </div>
         </div>

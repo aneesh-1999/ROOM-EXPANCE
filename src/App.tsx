@@ -274,39 +274,35 @@ export default function App() {
 
           <div className="flex items-center gap-2.5">
             {/* View Mode Switcher Toggles */}
-            <button
-              id="btn-nav-insights"
-              onClick={() => setActiveTab('insights')}
-              className={`px-3 py-1.5 border-2 border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wide cursor-pointer transition-all flex items-center gap-1.5 ${
-                activeTab === 'insights'
-                  ? 'bg-amber-400 text-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]'
-                  : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" />
-              <span>Insights</span>
-            </button>
-            <button
-              id="btn-nav-ledger"
-              onClick={() => setActiveTab('workspace')}
-              className={`px-3 py-1.5 border-2 border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wide cursor-pointer transition-all flex items-center gap-1.5 ${
-                activeTab === 'workspace'
-                  ? 'bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]'
-                  : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Ledger</span>
-            </button>
+            {activeTab !== 'insights' && (
+              <button
+                id="btn-nav-insights"
+                onClick={() => setActiveTab('insights')}
+                className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-amber-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+                title="View Insights"
+              >
+                <BarChart3 className="w-4 h-4 stroke-[2.5px]" />
+              </button>
+            )}
+            {activeTab !== 'workspace' && (
+              <button
+                id="btn-nav-ledger"
+                onClick={() => setActiveTab('workspace')}
+                className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-indigo-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+                title="View Ledger"
+              >
+                <KeyRound className="w-4 h-4 stroke-[2.5px]" />
+              </button>
+            )}
 
             {activeTab === 'personal' && (
               <button
                 id="btn-nav-personal"
                 onClick={() => setActiveTab('personal')}
-                className="px-3 py-1.5 border-2 border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wide cursor-pointer transition-all flex items-center gap-1.5 bg-emerald-500 text-white shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]"
+                className="p-2.5 border-2 border-slate-900 rounded-xl bg-emerald-500 text-white shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer"
+                title="Private Vault"
               >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Private Vault</span>
+                <Lock className="w-4 h-4 stroke-[2.5px]" />
               </button>
             )}
 
@@ -314,11 +310,10 @@ export default function App() {
               <button
                 id="btn-settings-open"
                 onClick={() => setIsSettingsOpen(true)}
-                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border-2 border-slate-900 rounded-xl shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition-all flex items-center gap-1 text-[10px] font-black uppercase tracking-wide cursor-pointer"
+                className="p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border-2 border-slate-900 rounded-xl shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer"
                 title="Profile Settings"
               >
-                <Settings className="w-3.5 h-3.5" />
-                <span>Settings</span>
+                <Settings className="w-4 h-4 stroke-[2.5px]" />
               </button>
             )}
 

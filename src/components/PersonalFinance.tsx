@@ -76,8 +76,8 @@ const PERSONAL_CATEGORIES = [
   'Cinema & Entertainment',
   'Shopping',
   'Fuel & Transport',
-  'Nepal Remittance 🇳🇵',
-  'Salary/Earnings 💼',
+  'Nepal Remittance',
+  'Salary/Earnings',
   'Mobile & Subscriptions',
   'Rent & Personal Utilities',
   'Savings Contribution',
@@ -1408,35 +1408,35 @@ export default function PersonalFinance({
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Expense 💸
+                  <TrendingDown className="w-3.5 h-3.5 inline mr-1 stroke-[2.5]" /> Expense
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setTxType('income');
-                    setTxCategory('Salary/Earnings 💼');
+                    setTxCategory('Salary/Earnings');
                   }}
-                  className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 ${
                     txType === 'income' 
                       ? 'bg-slate-900 text-white shadow-sm' 
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Income 💰
+                  <TrendingUp className="w-3.5 h-3.5 inline mr-1 stroke-[2.5]" /> Income
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setTxType('remittance');
-                    setTxCategory('Nepal Remittance 🇳🇵');
+                    setTxCategory('Nepal Remittance');
                   }}
-                  className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 ${
                     txType === 'remittance' 
                       ? 'bg-slate-900 text-white shadow-sm' 
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Nepal Send 🇳🇵
+                  <Send className="w-3.5 h-3.5 inline mr-1 stroke-[2.5]" /> Nepal Send
                 </button>
               </div>
 
@@ -1643,10 +1643,10 @@ export default function PersonalFinance({
                     onChange={(e) => setAccType(e.target.value as any)}
                     className="w-full p-2.5 border-2 border-slate-900 rounded-xl bg-white focus:outline-none"
                   >
-                    <option value="Cash">Cash 🪙</option>
-                    <option value="Bank Account">Bank Account 🏦</option>
-                    <option value="Revolut">Revolut 💳</option>
-                    <option value="Digital Wallet">Digital Wallet 📱</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Bank Account">Bank Account</option>
+                    <option value="Revolut">Revolut</option>
+                    <option value="Digital Wallet">Digital Wallet</option>
                   </select>
                 </div>
 
@@ -1968,9 +1968,9 @@ export default function PersonalFinance({
                     onChange={(e) => setBillFrequency(e.target.value as any)}
                     className="w-full p-2.5 border-2 border-slate-900 rounded-xl bg-white focus:outline-none"
                   >
-                    <option value="Monthly">Monthly 📅</option>
-                    <option value="Weekly">Weekly 🗓️</option>
-                    <option value="Yearly">Yearly 🎆</option>
+                    <option value="Monthly">Monthly</option>
+                    <option value="Weekly">Weekly</option>
+                    <option value="Yearly">Yearly</option>
                   </select>
                 </div>
               </div>

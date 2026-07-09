@@ -36,7 +36,8 @@ import {
   BellRing,
   Send,
   Copy,
-  Download
+  Download,
+  Menu
 } from 'lucide-react';
 import { 
   getDiscordSettings, 
@@ -60,6 +61,7 @@ export default function AdminPanelModal({ expenses, currentUser: propCurrentUser
   const currentUser = isStandalone ? 'Ozric' : propCurrentUser;
   const isSuperAdmin = currentUser === 'Ozric';
   const [activeTab, setActiveTab] = useState<AdminTab>('ledger');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -514,21 +516,28 @@ Warning: Save this securely offline. This code will be burned forever upon usage
         {/* HEADER */}
         <div className="p-5 border-b-4 border-slate-950 flex items-center justify-between bg-amber-100 shrink-0">
           <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="md:hidden p-2.5 rounded-xl border-2 border-slate-900 bg-white hover:bg-slate-100 transition-all duration-200 cursor-pointer shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] mr-1"
+              title="Toggle Sidebar Menu"
+            >
+              <Menu className="w-4 h-4 stroke-[2.5px] text-slate-900" />
+            </button>
             <span className="p-2.5 bg-amber-250 text-slate-900 rounded-2xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
               <Wrench className="w-5 h-5 stroke-[2.5px]" />
             </span>
             <div>
-              <h3 className="text-lg font-black tracking-tight text-slate-900 uppercase">Super Admin Engine</h3>
-              <p className="text-xs text-amber-900 font-bold font-mono">AUTHORIZED OVERRIDE • COMPREHENSIVE CONTROL BOARD</p>
+              <h3 className="text-sm sm:text-lg font-black tracking-tight text-slate-900 uppercase">Super Admin Engine</h3>
+              <p className="text-[9px] sm:text-xs text-amber-900 font-bold font-mono">AUTHORIZED OVERRIDE • COMPREHENSIVE CONTROL BOARD</p>
             </div>
           </div>
           {isStandalone ? (
             <button 
               id="btn-close-admin-panel"
               onClick={onClose}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-wider border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition duration-200 cursor-pointer flex items-center gap-1.5 rounded-xl"
+              className="px-3 sm:px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition duration-200 cursor-pointer flex items-center gap-1.5 rounded-xl"
             >
-              <span>🚪 Sign Out Admin</span>
+              <span>🚪 Sign Out</span>
             </button>
           ) : (
             <button 
@@ -541,98 +550,132 @@ Warning: Save this securely offline. This code will be burned forever upon usage
           )}
         </div>
 
-        {/* NEOBRUTALIST TABS SECTION */}
-        <div className="bg-slate-50 border-b-4 border-slate-950 px-6 py-2.5 flex items-center gap-2.5 shrink-0 overflow-x-auto">
-          <button
-            id="tab-admin-ledger"
-            onClick={() => {
-              setErrorMsg('');
-              setSuccessMsg('');
-              setActiveTab('ledger');
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer ${
-              activeTab === 'ledger'
-                ? 'bg-indigo-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
-                : 'bg-white text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            Ledger Admin ({filteredExpenses.length})
-          </button>
+        {/* INNER WRAPPER FOR SIDEBAR AND CONTENT */}
+        <div className="flex flex-1 overflow-hidden relative">
           
-          <button
-            id="tab-admin-profiles"
-            onClick={() => {
-              setErrorMsg('');
-              setSuccessMsg('');
-              setActiveTab('profiles');
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer ${
-              activeTab === 'profiles'
-                ? 'bg-pink-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
-                : 'bg-white text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            Roommate Profiles
-          </button>
-
-          <button
-            id="tab-admin-discord"
-            onClick={() => {
-              setErrorMsg('');
-              setSuccessMsg('');
-              setActiveTab('discord');
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer ${
-              activeTab === 'discord'
-                ? 'bg-blue-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
-                : 'bg-white text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            Discord Push Settings
-          </button>
-
-          <button
-            id="tab-admin-security"
-            onClick={() => {
-              setErrorMsg('');
-              setSuccessMsg('');
-              setActiveTab('security');
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer ${
-              activeTab === 'security'
-                ? 'bg-rose-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
-                : 'bg-white text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            🛡️ Security Audits
-          </button>
-
-          <button
-            id="tab-admin-maintenance"
-            onClick={() => {
-              setErrorMsg('');
-              setSuccessMsg('');
-              setActiveTab('maintenance');
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer ${
-              activeTab === 'maintenance'
-                ? 'bg-emerald-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
-                : 'bg-white text-slate-800 hover:bg-slate-50'
-            }`}
-          >
-            Maintenance & DB
-          </button>
-        </div>
-
-        {/* CONTAINER SCROLL */}
-        <div className="p-6 space-y-5 overflow-y-auto flex-1">
-          
-          {errorMsg && (
-            <div className="bg-rose-100 border-2 border-slate-900 text-slate-900 text-xs rounded-2xl p-4 flex items-start gap-2.5 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] font-bold animate-fade-in">
-              <AlertCircle className="w-4 h-4 text-rose-650 shrink-0 mt-0.5" />
-              <p className="leading-relaxed">{errorMsg}</p>
-            </div>
+          {/* SIDEBAR BACKDROP OVERLAY FOR MOBILE */}
+          {isSidebarOpen && (
+            <div 
+              onClick={() => setIsSidebarOpen(false)}
+              className="md:hidden absolute inset-0 bg-slate-950/50 backdrop-blur-xs z-30 transition-opacity duration-300"
+            />
           )}
+
+          {/* COLLAPSIBLE SIDEBAR */}
+          <aside className={`
+            absolute md:static inset-y-0 left-0 z-40 w-64 bg-slate-100 border-r-4 border-slate-950 p-4 flex flex-col gap-3 shrink-0 transition-transform duration-300 ease-in-out
+            ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          `}>
+            <div className="flex items-center justify-between pb-3 mb-1 border-b-2 border-slate-250">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">Navigation Menu</span>
+              <button 
+                className="md:hidden p-1 rounded-lg border-2 border-slate-900 text-slate-700 hover:text-slate-900 bg-white"
+                onClick={() => setIsSidebarOpen(false)}
+              >
+                <X className="w-3.5 h-3.5 stroke-[2.5px]" />
+              </button>
+            </div>
+
+            <button
+              id="tab-admin-ledger"
+              onClick={() => {
+                setErrorMsg('');
+                setSuccessMsg('');
+                setActiveTab('ledger');
+                setIsSidebarOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer flex items-center gap-2.5 ${
+                activeTab === 'ledger'
+                  ? 'bg-indigo-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                  : 'bg-white text-slate-800 hover:bg-indigo-50'
+              }`}
+            >
+              <Database className="w-4 h-4" />
+              <span>Ledger Override ({filteredExpenses.length})</span>
+            </button>
+
+            <button
+              id="tab-admin-profiles"
+              onClick={() => {
+                setErrorMsg('');
+                setSuccessMsg('');
+                setActiveTab('profiles');
+                setIsSidebarOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer flex items-center gap-2.5 ${
+                activeTab === 'profiles'
+                  ? 'bg-pink-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                  : 'bg-white text-slate-800 hover:bg-pink-50'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>Roommates</span>
+            </button>
+
+            <button
+              id="tab-admin-discord"
+              onClick={() => {
+                setErrorMsg('');
+                setSuccessMsg('');
+                setActiveTab('discord');
+                setIsSidebarOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer flex items-center gap-2.5 ${
+                activeTab === 'discord'
+                  ? 'bg-blue-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                  : 'bg-white text-slate-800 hover:bg-blue-50'
+              }`}
+            >
+              <BellRing className="w-4 h-4" />
+              <span>Discord Hook</span>
+            </button>
+
+            <button
+              id="tab-admin-security"
+              onClick={() => {
+                setErrorMsg('');
+                setSuccessMsg('');
+                setActiveTab('security');
+                setIsSidebarOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer flex items-center gap-2.5 ${
+                activeTab === 'security'
+                  ? 'bg-rose-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                  : 'bg-white text-slate-800 hover:bg-rose-50'
+              }`}
+            >
+              <ShieldAlert className="w-4 h-4" />
+              <span>Security Logs</span>
+            </button>
+
+            <button
+              id="tab-admin-maintenance"
+              onClick={() => {
+                setErrorMsg('');
+                setSuccessMsg('');
+                setActiveTab('maintenance');
+                setIsSidebarOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer flex items-center gap-2.5 ${
+                activeTab === 'maintenance'
+                  ? 'bg-emerald-600 text-white translate-x-[1px] translate-y-[1px] shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                  : 'bg-white text-slate-800 hover:bg-emerald-50'
+              }`}
+            >
+              <Wrench className="w-4 h-4" />
+              <span>Maintenance</span>
+            </button>
+          </aside>
+
+          {/* MAIN CONTENT AREA */}
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
+            
+            {errorMsg && (
+              <div className="bg-rose-100 border-2 border-slate-900 text-slate-900 text-xs rounded-2xl p-4 flex items-start gap-2.5 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] font-bold animate-fade-in">
+                <AlertCircle className="w-4 h-4 text-rose-650 shrink-0 mt-0.5" />
+                <p className="leading-relaxed">{errorMsg}</p>
+              </div>
+            )}
 
           {successMsg && (
             <div className="bg-emerald-150 border-2 border-slate-900 text-slate-900 text-xs rounded-2xl p-4 flex items-start gap-2.5 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] font-bold animate-fade-in">
@@ -1999,6 +2042,7 @@ Warning: Save this securely offline. This code will be burned forever upon usage
           )}
 
         </div>
+      </div>
 
       </div>
 
