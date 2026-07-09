@@ -49,11 +49,12 @@ interface AdminPanelModalProps {
   currentUser?: Roommate;
   onClose: () => void;
   onRefreshNicknames: () => void;
+  isStandalone?: boolean;
 }
 
 type AdminTab = 'ledger' | 'profiles' | 'discord' | 'security' | 'maintenance';
 
-export default function AdminPanelModal({ expenses, currentUser, onClose, onRefreshNicknames }: AdminPanelModalProps) {
+export default function AdminPanelModal({ expenses, currentUser, onClose, onRefreshNicknames, isStandalone = false }: AdminPanelModalProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('ledger');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -397,8 +398,8 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white border-4 border-slate-900 rounded-3xl w-full max-w-3xl shadow-[10px_10px_0px_0px_rgba(15,23,42,1)] overflow-hidden my-auto flex flex-col h-[85vh]">
+    <div className={isStandalone ? "min-h-screen bg-slate-50 flex flex-col w-full animate-fade-in" : "fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in"}>
+      <div className={isStandalone ? "bg-white border-4 border-slate-900 rounded-3xl w-full max-w-5xl mx-auto my-6 shadow-[10px_10px_0px_0px_rgba(15,23,42,1)] overflow-hidden flex flex-col h-[92vh]" : "bg-white border-4 border-slate-900 rounded-3xl w-full max-w-3xl shadow-[10px_10px_0px_0px_rgba(15,23,42,1)] overflow-hidden my-auto flex flex-col h-[85vh]"}>
         
         {/* HEADER */}
         <div className="p-5 border-b-4 border-slate-950 flex items-center justify-between bg-amber-100 shrink-0">
@@ -411,13 +412,23 @@ export default function AdminPanelModal({ expenses, currentUser, onClose, onRefr
               <p className="text-xs text-amber-900 font-bold font-mono">AUTHORIZED OVERRIDE • COMPREHENSIVE CONTROL BOARD</p>
             </div>
           </div>
-          <button 
-            id="btn-close-admin-panel"
-            onClick={onClose}
-            className="p-2 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-amber-200/50 border-2 border-slate-900 transition duration-200 cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {isStandalone ? (
+            <button 
+              id="btn-close-admin-panel"
+              onClick={onClose}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-wider border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition duration-200 cursor-pointer flex items-center gap-1.5 rounded-xl"
+            >
+              <span>🚪 Sign Out Admin</span>
+            </button>
+          ) : (
+            <button 
+              id="btn-close-admin-panel"
+              onClick={onClose}
+              className="p-2 rounded-xl text-slate-700 hover:text-slate-950 hover:bg-amber-200/50 border-2 border-slate-900 transition duration-200 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* NEOBRUTALIST TABS SECTION */}

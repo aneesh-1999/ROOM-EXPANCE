@@ -13,6 +13,7 @@ import ExpenseHistory from './components/ExpenseHistory';
 import ProfileLockScreen from './components/ProfileLockScreen';
 import UserSettingsModal from './components/UserSettingsModal';
 import AdminPanelModal from './components/AdminPanelModal';
+import SecretAdminLogin from './components/SecretAdminLogin';
 import DetailedReportModal from './components/DetailedReportModal';
 import InsightsDashboard from './components/InsightsDashboard';
 import PersonalFinance from './components/PersonalFinance';
@@ -36,7 +37,44 @@ export default function App() {
   const [isLendBorrowOpen, setIsLendBorrowOpen] = useState(false);
   const [isDetailedReportOpen, setIsDetailedReportOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => sessionStorage.getItem('isAdminLoggedIn') === 'true');
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+
+  // Check for secret admin query parameter ?admin on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('admin')) {
+      setShowAdminLogin(true);
+    }
+  }, []);
+
+  const handleAdminLoginSuccess = () => {
+    setIsAdminLoggedIn(true);
+    setShowAdminLogin(false);
+    // Clean up URL query parameters to hide ?admin secretly
+    if (window.history.pushState) {
+      const newurl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+      window.history.pushState({ path: newurl }, '', newurl);
+    }
+  };
+
+  const handleAdminLogout = () => {
+    sessionStorage.removeItem('isAdminLoggedIn');
+    setIsAdminLoggedIn(false);
+    setShowAdminLogin(false);
+  };
+
+  const [footerClicks, setFooterClicks] = useState(0);
+  const handleFooterClick = () => {
+    setFooterClicks(prev => {
+      const next = prev + 1;
+      if (next >= 5) {
+        setShowAdminLogin(true);
+        return 0;
+      }
+      return next;
+    });
+  };
 
   // Security Unlocked sessions (stored in sessionStorage so closing the browser tab locks it)
   const [unlockedUsers, setUnlockedUsers] = useState<Record<Roommate, boolean>>(() => {
@@ -139,10 +177,8 @@ export default function App() {
   };
 
   const handleLogoDoubleClick = () => {
-    // Only allow when Ozric profile is active and unlocked
-    if (currentUser === 'Ozric' && unlockedUsers['Ozric']) {
-      setIsAdminOpen(true);
-    }
+    // Open Secret Admin Login
+    setShowAdminLogin(true);
   };
 
   // Real-time listener for active session termination (Kill session)
@@ -190,6 +226,28 @@ export default function App() {
 
     return () => unsubscribe();
   }, []);
+
+  // Render Secret Admin Login Screen
+  if (showAdminLogin && !isAdminLoggedIn) {
+    return (
+      <SecretAdminLogin
+        onLoginSuccess={handleAdminLoginSuccess}
+        onCancel={() => setShowAdminLogin(false)}
+      />
+    );
+  }
+
+  // Render separate full-screen Admin Control Board
+  if (isAdminLoggedIn) {
+    return (
+      <AdminPanelModal
+        expenses={expenses}
+        onClose={handleAdminLogout}
+        onRefreshNicknames={loadNicknames}
+        isStandalone={true}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-indigo-50 text-slate-900 flex flex-col antialiased">
@@ -419,17 +477,12 @@ export default function App() {
         />
       )}
 
-      {isAdminOpen && (
-        <AdminPanelModal 
-          expenses={expenses}
-          currentUser={currentUser}
-          onClose={() => setIsAdminOpen(false)}
-          onRefreshNicknames={loadNicknames}
-        />
-      )}
-
       {/* SUBTLE FOOTER CREDIT */}
-      <footer className="py-6 text-center text-[10px] text-slate-500 font-mono tracking-wider border-t-2 border-indigo-100 max-w-4xl mx-auto w-full">
+      <footer 
+        onClick={handleFooterClick}
+        className="py-6 text-center text-[10px] text-slate-500 hover:text-slate-700 active:scale-[0.99] transition duration-200 font-mono tracking-wider border-t-2 border-indigo-100 max-w-4xl mx-auto w-full cursor-pointer select-none"
+        title="Shared Cohabitation PWA • Designed for Pawan & Ozric"
+      >
         Shared Cohabitation PWA • Designed for Pawan & Ozric
       </footer>
     </div>
