@@ -108,6 +108,160 @@
         }
       },
       "required": ["password"]
+    },
+    "PersonalAccount": {
+      "title": "PersonalAccount",
+      "description": "Private financial account belonging to a roommate in their private vault.",
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "string",
+          "enum": ["Ozric", "Pawan"]
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["Cash", "Bank Account", "Revolut", "Digital Wallet"]
+        },
+        "balance": {
+          "type": "number"
+        },
+        "currency": {
+          "type": "string",
+          "enum": ["EUR", "NPR", "USD"]
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": ["user", "name", "type", "balance", "currency"]
+    },
+    "PersonalTransaction": {
+      "title": "PersonalTransaction",
+      "description": "Private financial transaction logged in a roommate's private vault.",
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "string",
+          "enum": ["Ozric", "Pawan"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["expense", "income", "remittance"]
+        },
+        "category": {
+          "type": "string"
+        },
+        "accountId": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array"
+        },
+        "receiptUrl": {
+          "type": "string"
+        },
+        "receiptName": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string",
+          "enum": ["EUR", "NPR", "USD"]
+        },
+        "exchangeRate": {
+          "type": "number"
+        }
+      },
+      "required": ["user", "title", "amount", "type", "category", "accountId", "currency"]
+    },
+    "SavingsGoal": {
+      "title": "SavingsGoal",
+      "description": "Private personal savings goals tracked in a roommate's private vault.",
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "string",
+          "enum": ["Ozric", "Pawan"]
+        },
+        "name": {
+          "type": "string"
+        },
+        "targetAmount": {
+          "type": "number"
+        },
+        "currentAmount": {
+          "type": "number"
+        },
+        "currency": {
+          "type": "string",
+          "enum": ["EUR", "NPR", "USD"]
+        },
+        "deadline": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": ["user", "name", "targetAmount", "currentAmount", "currency", "deadline"]
+    },
+    "RecurringBill": {
+      "title": "RecurringBill",
+      "description": "Private recurring bills tracked in a roommate's private vault.",
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "string",
+          "enum": ["Ozric", "Pawan"]
+        },
+        "name": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "category": {
+          "type": "string"
+        },
+        "dueDate": {
+          "type": "integer"
+        },
+        "frequency": {
+          "type": "string",
+          "enum": ["Monthly", "Weekly", "Yearly"]
+        },
+        "currency": {
+          "type": "string",
+          "enum": ["EUR", "NPR", "USD"]
+        },
+        "lastPaid": {
+          "type": "string"
+        },
+        "reminderActive": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": ["user", "name", "amount", "category", "dueDate", "frequency", "currency", "reminderActive"]
     }
   },
   "firestore": {
@@ -122,6 +276,30 @@
         "$ref": "#/entities/Profile"
       },
       "description": "Security profiles for Ozric and Pawan."
+    },
+    "personal_accounts": {
+      "schema": {
+        "$ref": "#/entities/PersonalAccount"
+      },
+      "description": "Vault accounts storing personal balances for each roommate."
+    },
+    "personal_transactions": {
+      "schema": {
+        "$ref": "#/entities/PersonalTransaction"
+      },
+      "description": "Vault transactions storing history for each roommate's personal spending."
+    },
+    "personal_savings_goals": {
+      "schema": {
+        "$ref": "#/entities/SavingsGoal"
+      },
+      "description": "Vault savings goals tracked by each roommate."
+    },
+    "personal_recurring_bills": {
+      "schema": {
+        "$ref": "#/entities/RecurringBill"
+      },
+      "description": "Vault recurring subscription bills tracked by each roommate."
     }
   }
 }

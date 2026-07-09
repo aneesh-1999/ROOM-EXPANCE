@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Roommate, Profile, Category } from '../types';
 import { getProfile, updateProfile } from '../dbService';
-import { X, ShieldCheck, Key, UserCheck, LogOut, Check, AlertCircle, Sparkles, RefreshCw, Smile, Palette, Landmark, PiggyBank, PhoneCall, Zap } from 'lucide-react';
+import { X, ShieldCheck, Key, UserCheck, LogOut, Check, AlertCircle, Sparkles, RefreshCw, Smile, Palette, Landmark, PiggyBank, PhoneCall, Zap, Lock } from 'lucide-react';
 
 interface UserSettingsModalProps {
   currentUser: Roommate;
@@ -9,6 +9,7 @@ interface UserSettingsModalProps {
   onLockProfile: () => void;
   onProfileUpdated: () => void;
   onOpenDetailedReport: () => void;
+  onOpenPrivateVault: () => void;
 }
 
 export default function UserSettingsModal({ 
@@ -16,7 +17,8 @@ export default function UserSettingsModal({
   onClose, 
   onLockProfile,
   onProfileUpdated,
-  onOpenDetailedReport
+  onOpenDetailedReport,
+  onOpenPrivateVault
 }: UserSettingsModalProps) {
   // Profile settings
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -452,6 +454,30 @@ export default function UserSettingsModal({
                   className="w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 bg-emerald-600 text-white border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] hover:bg-emerald-700 active:translate-x-[1px] active:translate-y-[1px] flex items-center justify-center gap-2 cursor-pointer font-sans"
                 >
                   Generate Statement Report
+                </button>
+              </div>
+
+              <hr className="border-t-2 border-slate-100" />
+
+              {/* PRIVATE FINANCIAL VAULT */}
+              <div className="space-y-2.5 bg-purple-50/40 border-2 border-purple-900 p-4 rounded-2xl shadow-[2px_2px_0px_0px_rgba(147,51,234,1)]">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-purple-800 font-mono flex items-center gap-1.5">
+                  <Lock className="w-4 h-4 text-purple-600 animate-pulse" />
+                  Private Financial Vault
+                </h4>
+                <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
+                  Access your encrypted, secure vault to track non-shared bank balances, cash, remittance transfers 🇳🇵, and personal savings goals.
+                </p>
+                <button
+                  id="btn-settings-private-vault"
+                  type="button"
+                  onClick={() => {
+                    onClose(); // close settings modal first
+                    onOpenPrivateVault();
+                  }}
+                  className="w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 bg-purple-600 text-white border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] hover:bg-purple-700 active:translate-x-[1px] active:translate-y-[1px] flex items-center justify-center gap-2 cursor-pointer font-sans"
+                >
+                  Enter Private Vault
                 </button>
               </div>
 

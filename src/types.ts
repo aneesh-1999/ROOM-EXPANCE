@@ -58,3 +58,60 @@ export interface Profile {
   phone?: string;
   updatedAt?: any;
 }
+
+export type PersonalAccountType = 'Cash' | 'Bank Account' | 'Revolut' | 'Digital Wallet';
+export type PersonalTxType = 'expense' | 'income' | 'remittance';
+
+export interface PersonalAccount {
+  id: string;
+  user: Roommate;
+  name: string;
+  type: PersonalAccountType;
+  balance: number;
+  currency: 'EUR' | 'NPR' | 'USD';
+  createdAt?: any;
+}
+
+export interface PersonalTransaction {
+  id: string;
+  user: Roommate;
+  title: string;
+  amount: number;
+  type: PersonalTxType;
+  category: string;
+  accountId: string; // references PersonalAccount.id
+  timestamp: any;
+  tags: string[];
+  receiptUrl?: string; // Base64 or mock file url
+  receiptName?: string;
+  notes?: string;
+  currency: 'EUR' | 'NPR' | 'USD';
+  exchangeRate?: number; // Rate to EUR
+}
+
+export interface SavingsGoal {
+  id: string;
+  user: Roommate;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  currency: 'EUR' | 'NPR' | 'USD';
+  deadline: string; // YYYY-MM-DD
+  notes?: string;
+  createdAt?: any;
+}
+
+export interface RecurringBill {
+  id: string;
+  user: Roommate;
+  name: string;
+  amount: number;
+  category: string;
+  dueDate: number; // day of month (1-31)
+  frequency: 'Monthly' | 'Weekly' | 'Yearly';
+  currency: 'EUR' | 'NPR' | 'USD';
+  lastPaid?: string; // YYYY-MM-DD
+  reminderActive: boolean;
+  notes?: string;
+}
+

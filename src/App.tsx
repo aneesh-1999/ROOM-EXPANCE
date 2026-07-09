@@ -13,7 +13,9 @@ import ProfileLockScreen from './components/ProfileLockScreen';
 import UserSettingsModal from './components/UserSettingsModal';
 import AdminPanelModal from './components/AdminPanelModal';
 import DetailedReportModal from './components/DetailedReportModal';
-import { Wallet, Zap, Calendar, HeartHandshake, RefreshCw, AlertCircle, Settings } from 'lucide-react';
+import InsightsDashboard from './components/InsightsDashboard';
+import PersonalFinance from './components/PersonalFinance';
+import { Wallet, Zap, Calendar, HeartHandshake, RefreshCw, AlertCircle, Settings, BarChart3, KeyRound, Lock } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<Roommate>(() => {
@@ -25,6 +27,7 @@ export default function App() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
+  const [activeTab, setActiveTab] = useState<'insights' | 'workspace' | 'personal'>('insights');
   
   // Modals/Drawers
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
@@ -149,11 +152,48 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {unlockedUsers[currentUser] && (
+            {/* View Mode Switcher Toggles */}
+            <button
+              id="btn-nav-insights"
+              onClick={() => setActiveTab('insights')}
+              className={`px-3 py-1.5 border-2 border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wide cursor-pointer transition-all flex items-center gap-1.5 ${
+                activeTab === 'insights'
+                  ? 'bg-amber-400 text-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]'
+                  : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Insights</span>
+            </button>
+            <button
+              id="btn-nav-ledger"
+              onClick={() => setActiveTab('workspace')}
+              className={`px-3 py-1.5 border-2 border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wide cursor-pointer transition-all flex items-center gap-1.5 ${
+                activeTab === 'workspace'
+                  ? 'bg-indigo-600 text-white shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]'
+                  : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>Ledger</span>
+            </button>
+
+            {activeTab === 'personal' && (
+              <button
+                id="btn-nav-personal"
+                onClick={() => setActiveTab('personal')}
+                className="px-3 py-1.5 border-2 border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wide cursor-pointer transition-all flex items-center gap-1.5 bg-emerald-500 text-white shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Private Vault</span>
+              </button>
+            )}
+
+            {unlockedUsers[currentUser] && activeTab === 'workspace' && (
               <button
                 id="btn-settings-open"
                 onClick={() => setIsSettingsOpen(true)}
-                className="px-3 py-1.5 bg-indigo-55 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border-2 border-slate-900 rounded-xl shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition-all flex items-center gap-1 text-[10px] font-black uppercase tracking-wide cursor-pointer"
+                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border-2 border-slate-900 rounded-xl shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition-all flex items-center gap-1 text-[10px] font-black uppercase tracking-wide cursor-pointer"
                 title="Profile Settings"
               >
                 <Settings className="w-3.5 h-3.5" />
@@ -186,60 +226,84 @@ export default function App() {
           </div>
         )}
 
-        {/* ACTIVE PROFILE SELECTOR */}
-        <UserSelector currentUser={currentUser} onUserChange={handleUserChange} nicknames={nicknames} profiles={profiles} />
-
-        {!unlockedUsers[currentUser] ? (
-          <ProfileLockScreen 
-            selectedUser={currentUser} 
-            onUnlock={() => handleUnlockUser(currentUser)} 
-            onSwitchUser={handleUserChange}
+        {activeTab === 'insights' ? (
+          <InsightsDashboard 
+            expenses={expenses}
+            onEnterWorkspace={() => setActiveTab('workspace')}
+            nicknames={nicknames}
+            profiles={profiles}
           />
-        ) : loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-500">
-            <RefreshCw className="w-8 h-8 animate-spin text-indigo-600" />
-            <p className="text-sm font-black text-slate-850">Loading ledger data...</p>
-            <p className="text-xs text-slate-500">Syncing database via Firestore Cache</p>
-          </div>
+        ) : activeTab === 'personal' ? (
+          <PersonalFinance 
+            currentUser={currentUser}
+            isUnlocked={unlockedUsers[currentUser]}
+            onPromptUnlock={() => {
+              setActiveTab('workspace');
+            }}
+            onBackToWorkspace={() => {
+              setActiveTab('workspace');
+            }}
+            nicknames={nicknames}
+            profiles={profiles}
+          />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-            {/* LEFT COLUMN: BALANCE AND COIN METER */}
-            <div className="md:col-span-2 space-y-6">
-              <Dashboard 
-                expenses={expenses} 
-                currentUser={currentUser}
-                onOpenAddExpense={() => setIsAddExpenseOpen(true)}
-                onOpenSettleUp={() => setIsSettleUpOpen(true)}
-                onOpenLendBorrow={() => setIsLendBorrowOpen(true)}
-                nicknames={nicknames}
-                profiles={profiles}
-              />
+          <>
+            {/* ACTIVE PROFILE SELECTOR */}
+            <UserSelector currentUser={currentUser} onUserChange={handleUserChange} nicknames={nicknames} profiles={profiles} />
 
-              <LendBorrowReport 
-                expenses={expenses}
-                currentUser={currentUser}
-                nicknames={nicknames}
+            {!unlockedUsers[currentUser] ? (
+              <ProfileLockScreen 
+                selectedUser={currentUser} 
+                onUnlock={() => handleUnlockUser(currentUser)} 
+                onSwitchUser={handleUserChange}
               />
+            ) : loading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-500">
+                <RefreshCw className="w-8 h-8 animate-spin text-indigo-600" />
+                <p className="text-sm font-black text-slate-850">Loading ledger data...</p>
+                <p className="text-xs text-slate-500">Syncing database via Firestore Cache</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                {/* LEFT COLUMN: BALANCE AND COIN METER */}
+                <div className="md:col-span-2 space-y-6">
+                  <Dashboard 
+                    expenses={expenses} 
+                    currentUser={currentUser}
+                    onOpenAddExpense={() => setIsAddExpenseOpen(true)}
+                    onOpenSettleUp={() => setIsSettleUpOpen(true)}
+                    onOpenLendBorrow={() => setIsLendBorrowOpen(true)}
+                    nicknames={nicknames}
+                    profiles={profiles}
+                  />
 
-              <CoinMeter 
-                expenses={expenses} 
-                currentUser={currentUser} 
-                onLogSuccess={() => {}}
-                nicknames={nicknames}
-                profiles={profiles}
-              />
-            </div>
+                  <LendBorrowReport 
+                    expenses={expenses}
+                    currentUser={currentUser}
+                    nicknames={nicknames}
+                  />
 
-            {/* RIGHT COLUMN: HISTORY */}
-            <div className="md:col-span-1 space-y-6">
-              <ExpenseHistory 
-                expenses={expenses} 
-                currentUser={currentUser}
-                onDeleteSuccess={() => {}}
-                nicknames={nicknames}
-              />
-            </div>
-          </div>
+                  <CoinMeter 
+                    expenses={expenses} 
+                    currentUser={currentUser} 
+                    onLogSuccess={() => {}}
+                    nicknames={nicknames}
+                    profiles={profiles}
+                  />
+                </div>
+
+                {/* RIGHT COLUMN: HISTORY */}
+                <div className="md:col-span-1 space-y-6">
+                  <ExpenseHistory 
+                    expenses={expenses} 
+                    currentUser={currentUser}
+                    onDeleteSuccess={() => {}}
+                    nicknames={nicknames}
+                  />
+                </div>
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -288,6 +352,7 @@ export default function App() {
           onLockProfile={() => handleLockUser(currentUser)}
           onProfileUpdated={loadNicknames}
           onOpenDetailedReport={() => setIsDetailedReportOpen(true)}
+          onOpenPrivateVault={() => setActiveTab('personal')}
         />
       )}
 

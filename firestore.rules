@@ -10,5 +10,25 @@ service cloud.firestore {
     match /profiles/{profileId} {
       allow read, write: if true;
     }
+
+    // Personal Accounts
+    match /personal_accounts/{accountId} {
+      allow read, write: if true;
+    }
+
+    // Personal Transactions
+    match /personal_transactions/{transactionId} {
+      allow read, write: if true;
+    }
+
+    // Personal Savings Goals
+    match /personal_savings_goals/{goalId} {
+      allow read, write: if true;
+    }
+
+    // Personal Recurring Bills
+    match /personal_recurring_bills/{billId} {
+      allow read, write: if true;
+    }
   }
 }
