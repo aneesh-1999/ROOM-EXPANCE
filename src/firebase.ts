@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { initializeAuth, browserLocalPersistence } from 'firebase/auth';
 
 // Firebase configuration using credentials from our project setup
 const firebaseConfig = {
@@ -21,4 +22,10 @@ const db = initializeFirestore(app, {
   })
 }, "ai-studio-7a495509-3c2e-4c54-aafa-b8beac816b93");
 
-export { db };
+// Initialize Firebase Auth with browserLocalPersistence
+const auth = initializeAuth(app, {
+  persistence: browserLocalPersistence
+});
+
+export { db, auth, app };
+

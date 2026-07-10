@@ -296,7 +296,7 @@ export default function SecretAdminLogin({ onLoginSuccess, onCancel }: SecretAdm
         ]
       }, 'admin');
 
-      sessionStorage.setItem('isAdminLoggedIn', 'true');
+      localStorage.setItem('isAdminLoggedIn', 'true');
       onLoginSuccess();
     } else {
       // Failed login logic

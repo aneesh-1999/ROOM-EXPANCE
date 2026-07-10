@@ -240,7 +240,7 @@ export default function ProfileLockScreen({
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        if (data.sessionId !== sessionStorage.getItem('current_session_id')) {
+        if (data.sessionId !== localStorage.getItem('current_session_id')) {
           if (data.deviceName === dev.deviceName && data.operatingSystem === dev.operatingSystem) {
             newDevice = false;
           }
@@ -327,11 +327,11 @@ export default function ProfileLockScreen({
       });
 
       if (status === 'Success' && logId) {
-        sessionStorage.setItem('current_session_id', sessionId);
-        sessionStorage.setItem('login_log_doc_id', logId);
-        sessionStorage.setItem(`login_log_doc_id_${selectedUser}`, logId);
-        sessionStorage.setItem('login_time', Date.now().toString());
-        sessionStorage.setItem(`login_time_${selectedUser}`, Date.now().toString());
+        localStorage.setItem('current_session_id', sessionId);
+        localStorage.setItem('login_log_doc_id', logId);
+        localStorage.setItem(`login_log_doc_id_${selectedUser}`, logId);
+        localStorage.setItem('login_time', Date.now().toString());
+        localStorage.setItem(`login_time_${selectedUser}`, Date.now().toString());
         
         // Audit historic logins to notify of any new device/location parameters
         await checkForSuspiciousLogin(geo, dev);

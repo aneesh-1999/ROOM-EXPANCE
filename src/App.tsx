@@ -3,7 +3,7 @@ import { Roommate, Expense, Profile, RecurringBill } from './types';
 import { subscribeExpenses, getProfile, updateLoginLogLogout, subscribeToSessionLog } from './dbService';
 import { subscribeRecurringBills } from './personalFinanceService';
 import { sendDiscordNotification } from './discordService';
-import { processNewExpenses } from './notificationService';
+import { processNewExpenses, registerFCMTokenForUser, initForegroundFCMListener, removeFCMTokenForUser } from './notificationService';
 import UserSelector from './components/UserSelector';
 import Dashboard from './components/Dashboard';
 import CoinMeter from './components/CoinMeter';
@@ -42,7 +42,7 @@ export default function App() {
   const [isLendBorrowOpen, setIsLendBorrowOpen] = useState(false);
   const [isDetailedReportOpen, setIsDetailedReportOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => sessionStorage.getItem('isAdminLoggedIn') === 'true');
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => localStorage.getItem('isAdminLoggedIn') === 'true');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
 
   // Check for secret admin query parameter ?admin on mount
@@ -64,7 +64,7 @@ export default function App() {
   };
 
   const handleAdminLogout = () => {
-    sessionStorage.removeItem('isAdminLoggedIn');
+    localStorage.removeItem('isAdminLoggedIn');
     setIsAdminLoggedIn(false);
     setShowAdminLogin(false);
   };
@@ -81,18 +81,18 @@ export default function App() {
     });
   };
 
-  // Security Unlocked sessions (stored in sessionStorage so closing the browser tab locks it)
+  // Security Unlocked sessions (stored in localStorage so it persists across reboots/PWA closes)
   const [unlockedUsers, setUnlockedUsers] = useState<Record<Roommate, boolean>>(() => {
     return {
-      Ozric: sessionStorage.getItem('unlocked_Ozric') === 'true',
-      Pawan: sessionStorage.getItem('unlocked_Pawan') === 'true',
+      Ozric: localStorage.getItem('unlocked_Ozric') === 'true',
+      Pawan: localStorage.getItem('unlocked_Pawan') === 'true',
     };
   });
 
   // Keep track of active Firestore login log doc ID for real-time termination subscription
   const [currentSessionLogId, setCurrentSessionLogId] = useState<string | null>(() => {
     const savedRoommate = (localStorage.getItem('activeRoommate') as Roommate) || 'Ozric';
-    return sessionStorage.getItem(`login_log_doc_id_${savedRoommate}`) || sessionStorage.getItem('login_log_doc_id');
+    return localStorage.getItem(`login_log_doc_id_${savedRoommate}`) || localStorage.getItem('login_log_doc_id');
   });
 
   // Display name nicknames
@@ -135,32 +135,35 @@ export default function App() {
   const handleUserChange = (user: Roommate) => {
     setCurrentUser(user);
     localStorage.setItem('activeRoommate', user);
-    setCurrentSessionLogId(sessionStorage.getItem(`login_log_doc_id_${user}`) || sessionStorage.getItem('login_log_doc_id'));
+    setCurrentSessionLogId(localStorage.getItem(`login_log_doc_id_${user}`) || localStorage.getItem('login_log_doc_id'));
   };
 
   const handleUnlockUser = (user: Roommate) => {
     setUnlockedUsers((prev) => {
       const updated = { ...prev, [user]: true };
-      sessionStorage.setItem(`unlocked_${user}`, 'true');
+      localStorage.setItem(`unlocked_${user}`, 'true');
       return updated;
     });
-    setCurrentSessionLogId(sessionStorage.getItem(`login_log_doc_id_${user}`) || sessionStorage.getItem('login_log_doc_id'));
+    setCurrentSessionLogId(localStorage.getItem(`login_log_doc_id_${user}`) || localStorage.getItem('login_log_doc_id'));
   };
 
   const handleLockUser = (user: Roommate) => {
     // Session Duration calculation
-    const logDocId = sessionStorage.getItem(`login_log_doc_id_${user}`) || sessionStorage.getItem('login_log_doc_id');
-    const loginTime = sessionStorage.getItem(`login_time_${user}`) || sessionStorage.getItem('login_time');
+    const logDocId = localStorage.getItem(`login_log_doc_id_${user}`) || localStorage.getItem('login_log_doc_id');
+    const loginTime = localStorage.getItem(`login_time_${user}`) || localStorage.getItem('login_time');
     if (logDocId && loginTime) {
       const durationSeconds = Math.floor((Date.now() - Number(loginTime)) / 1000);
       updateLoginLogLogout(logDocId, durationSeconds).catch(err => console.error("Error logging session duration:", err));
-      sessionStorage.removeItem(`login_log_doc_id_${user}`);
-      sessionStorage.removeItem(`login_time_${user}`);
-      sessionStorage.removeItem('login_log_doc_id');
-      sessionStorage.removeItem('login_time');
-      sessionStorage.removeItem('current_session_id');
+      localStorage.removeItem(`login_log_doc_id_${user}`);
+      localStorage.removeItem(`login_time_${user}`);
+      localStorage.removeItem('login_log_doc_id');
+      localStorage.removeItem('login_time');
+      localStorage.removeItem('current_session_id');
     }
     setCurrentSessionLogId(null);
+
+    // Clean up active FCM registration token from profile upon manual lock / signout
+    removeFCMTokenForUser(user).catch(err => console.error("Error clearing FCM token:", err));
 
     sendDiscordNotification('userLoginLogout', {
       title: `🔒 Profile Session Locked`,
@@ -175,7 +178,7 @@ export default function App() {
 
     setUnlockedUsers((prev) => {
       const updated = { ...prev, [user]: false };
-      sessionStorage.removeItem(`unlocked_${user}`);
+      localStorage.removeItem(`unlocked_${user}`);
       return updated;
     });
     setIsSettingsOpen(false);
@@ -197,15 +200,15 @@ export default function App() {
         // Lock the profile immediately
         setUnlockedUsers((prev) => {
           const updated = { ...prev, [currentUser]: false };
-          sessionStorage.removeItem(`unlocked_${currentUser}`);
+          localStorage.removeItem(`unlocked_${currentUser}`);
           return updated;
         });
 
-        sessionStorage.removeItem(`login_log_doc_id_${currentUser}`);
-        sessionStorage.removeItem(`login_time_${currentUser}`);
-        sessionStorage.removeItem('login_log_doc_id');
-        sessionStorage.removeItem('login_time');
-        sessionStorage.removeItem('current_session_id');
+        localStorage.removeItem(`login_log_doc_id_${currentUser}`);
+        localStorage.removeItem(`login_time_${currentUser}`);
+        localStorage.removeItem('login_log_doc_id');
+        localStorage.removeItem('login_time');
+        localStorage.removeItem('current_session_id');
 
         setErrorMsg('⚠️ Your active session has been terminated by an administrator.');
         setCurrentSessionLogId(null);
@@ -246,6 +249,46 @@ export default function App() {
       processNewExpenses(expenses, currentUser, nicknames);
     }
   }, [expenses, currentUser, nicknames]);
+
+  // Register FCM registration token and init foreground listeners on roommate unlock
+  useEffect(() => {
+    if (unlockedUsers[currentUser]) {
+      registerFCMTokenForUser(currentUser);
+      initForegroundFCMListener();
+    }
+  }, [currentUser, unlockedUsers]);
+
+  // Handle deep-link PWA launcher URL and Active Service Worker redirect tapping
+  useEffect(() => {
+    const handleNavigationQuery = (actionType: string | null) => {
+      if (!actionType) return;
+      setActiveTab('workspace');
+      if (actionType === 'loan') {
+        setIsLendBorrowOpen(true);
+      } else if (actionType === 'coin') {
+        setTimeout(() => {
+          const el = document.getElementById('coin-meter-section');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 800);
+      }
+    };
+
+    // 1. URL Parameter check (PWA cold-start launcher)
+    const params = new URLSearchParams(window.location.search);
+    handleNavigationQuery(params.get('actionType'));
+
+    // 2. Client Service Worker active listener (PWA warm-start message pass)
+    if ('serviceWorker' in navigator) {
+      const handleServiceWorkerMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'ROUTE_TO_ACTION') {
+          console.log('[App] Received warm-route from Service Worker notification tap:', event.data.data);
+          handleNavigationQuery(event.data.data.actionType);
+        }
+      };
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+      return () => navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+    }
+  }, []);
 
   // Render Secret Admin Login Screen
   if (showAdminLogin && !isAdminLoggedIn) {
@@ -421,13 +464,15 @@ export default function App() {
                     nicknames={nicknames}
                   />
 
-                  <CoinMeter 
-                    expenses={expenses} 
-                    currentUser={currentUser} 
-                    onLogSuccess={() => {}}
-                    nicknames={nicknames}
-                    profiles={profiles}
-                  />
+                  <div id="coin-meter-section">
+                    <CoinMeter 
+                      expenses={expenses} 
+                      currentUser={currentUser} 
+                      onLogSuccess={() => {}}
+                      nicknames={nicknames}
+                      profiles={profiles}
+                    />
+                  </div>
                 </div>
 
                 {/* RIGHT COLUMN: HISTORY */}
