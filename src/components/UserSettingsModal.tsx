@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Roommate, Profile, Category } from '../types';
 import { getProfile, updateProfile } from '../dbService';
-import { X, ShieldCheck, Key, UserCheck, LogOut, Check, AlertCircle, Sparkles, RefreshCw, Smile, Palette, Landmark, PiggyBank, PhoneCall, Zap, Lock } from 'lucide-react';
+import { X, ShieldCheck, Key, UserCheck, LogOut, Check, AlertCircle, Sparkles, RefreshCw, Smile, Palette, Landmark, PiggyBank, PhoneCall, Zap, Lock, Bell } from 'lucide-react';
+import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, showNotification } from '../notificationService';
 
 interface UserSettingsModalProps {
   currentUser: Roommate;
@@ -34,6 +35,15 @@ export default function UserSettingsModal({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
+  // FCM / Push Notifications state
+  const [notifSupported, setNotifSupported] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    setNotifSupported(isNotificationSupported());
+    setNotifPermission(getNotificationPermission());
+  }, []);
+
   // UI States
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -479,6 +489,80 @@ export default function UserSettingsModal({
                 >
                   Enter Private Vault
                 </button>
+              </div>
+
+              <hr className="border-t-2 border-slate-100" />
+
+              {/* FCM & WEB PUSH NOTIFICATIONS */}
+              <div className="space-y-3 bg-indigo-50 border-2 border-slate-900 p-4 rounded-2xl shadow-[2px_2px_0px_0px_rgba(79,70,229,1)]">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-900 font-mono flex items-center gap-1.5">
+                    <Bell className="w-4 h-4 text-indigo-600" />
+                    FCM Push Notifications
+                  </h4>
+                  {notifPermission === 'granted' ? (
+                    <span className="bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded border border-slate-900 uppercase font-mono shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
+                      Active (FCM)
+                    </span>
+                  ) : (
+                    <span className="bg-amber-400 text-slate-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-slate-900 uppercase font-mono shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
+                      Pending Setup
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
+                  Connect device with Firebase Cloud Messaging (FCM). When your roommate logs a transaction or requests deletion, you will instantly receive standard operating system push notifications on your phone or desktop.
+                </p>
+
+                {!notifSupported ? (
+                  <div className="p-2 bg-rose-50 border border-rose-300 rounded-xl text-[9px] text-rose-700 font-bold">
+                    ⚠️ Browser does not support Web Push / Notification APIs.
+                  </div>
+                ) : notifPermission === 'default' ? (
+                  <button
+                    id="btn-settings-request-fcm"
+                    type="button"
+                    onClick={async () => {
+                      const permission = await requestNotificationPermission();
+                      setNotifPermission(permission);
+                      if (permission === 'granted') {
+                        showNotification('🏠 Roommate Wallet', {
+                          body: 'FCM Push Notifications activated successfully!',
+                          tag: 'fcm-activated'
+                        });
+                      }
+                    }}
+                    className="w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 bg-indigo-600 hover:bg-indigo-700 text-white border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] flex items-center justify-center gap-1.5 cursor-pointer font-sans"
+                  >
+                    Enable FCM Push Notifications
+                  </button>
+                ) : notifPermission === 'denied' ? (
+                  <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-[9px] text-rose-700 font-bold leading-normal">
+                    ❌ Permission Denied. Please clear permission blocks in your browser's address bar settings to allow notifications from this web application.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="p-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-[9px] text-emerald-800 font-bold flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>FCM service worker is active & listening.</span>
+                    </div>
+                    <button
+                      id="btn-settings-test-fcm"
+                      type="button"
+                      onClick={() => {
+                        const otherRoommate = currentUser === 'Ozric' ? 'Pawan' : 'Ozric';
+                        showNotification('🏠 Roommate Wallet', {
+                          body: `New Grocery Expense: ${otherRoommate} added €22.50. Tap to approve.`,
+                          tag: 'test-expense'
+                        });
+                      }}
+                      className="w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] flex items-center justify-center gap-1 cursor-pointer font-sans"
+                    >
+                      🧪 Trigger Test FCM Notification
+                    </button>
+                  </div>
+                )}
               </div>
 
               <hr className="border-t-2 border-slate-100" />

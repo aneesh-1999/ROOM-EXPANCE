@@ -1,6 +1,6 @@
 import React from 'react';
-import { Expense, Roommate, Profile } from '../types';
-import { ArrowUpRight, ArrowDownLeft, CheckCircle2, DollarSign, Wallet, Coins, Target, Sparkles, Phone, MessageSquare, Check, X, Clock, AlertCircle, Camera } from 'lucide-react';
+import { Expense, Roommate, Profile, RecurringBill } from '../types';
+import { ArrowUpRight, ArrowDownLeft, CheckCircle2, DollarSign, Wallet, Coins, Target, Sparkles, Phone, MessageSquare, Check, X, Clock, AlertCircle, Camera, Bell, Zap, Calendar } from 'lucide-react';
 import { confirmExpense, deleteExpense, cancelDeleteExpense } from '../dbService';
 
 interface DashboardProps {
@@ -12,6 +12,7 @@ interface DashboardProps {
   onOpenReceiptScanner?: () => void;
   nicknames: Record<Roommate, string>;
   profiles?: Record<Roommate, Profile>;
+  recurringBills?: RecurringBill[];
 }
 
 export default function Dashboard({ 
@@ -22,7 +23,8 @@ export default function Dashboard({
   onOpenLendBorrow, 
   onOpenReceiptScanner,
   nicknames,
-  profiles
+  profiles,
+  recurringBills
 }: DashboardProps) {
   const [actionLoading, setActionLoading] = React.useState<string | null>(null);
   const [errorMsg, setErrorMsg] = React.useState<string>('');
@@ -241,113 +243,224 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* REAL-TIME PENDING APPROVALS BOX */}
-      {pendingApprovals.length > 0 && (
-        <div className="bg-amber-100/80 border-4 border-amber-500 rounded-3xl p-5 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] space-y-3.5 transition-all">
-          <div className="flex items-center gap-2 border-b-2 border-amber-300 pb-2.5">
-            <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center border border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
-              <Clock className="w-3 h-3 text-white" />
-            </div>
-            <h4 className="text-xs font-black text-amber-950 uppercase tracking-widest font-mono">
-              Pending Roommate Actions ({pendingApprovals.length})
-            </h4>
-          </div>
-          
-          {errorMsg && (
-            <div className="p-2.5 bg-red-100 border-2 border-red-500 rounded-xl text-xs text-red-800 font-bold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
+      {/* SMART NOTIFICATIONS BOX */}
+      {(() => {
+        const pendingCount = pendingApprovals.length;
 
-          <div className="space-y-3">
-            {pendingApprovals.map((exp) => {
-              const isDeletion = exp.deleteRequested;
-              const requester = isDeletion ? exp.deleteRequestedBy : (exp.createdBy || exp.paidBy);
-              const requesterNick = nicknames[requester as Roommate] || requester;
-              
-              return (
-                <div key={exp.id} className="bg-white border-3 border-slate-900 p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${
-                        isDeletion 
-                          ? 'bg-rose-100 text-rose-800 border-rose-300' 
-                          : 'bg-amber-100 text-amber-800 border-amber-300'
-                      }`}>
-                        {isDeletion ? 'Deletion Request' : 'New Expense'}
-                      </span>
-                      <span className="text-xs font-mono font-black text-slate-900 bg-slate-100 border border-slate-900 px-1.5 py-0.5 rounded-md">
-                        €{exp.amount.toFixed(2)}
-                      </span>
-                      <span className="text-xs text-slate-600 font-medium">
-                        for <strong className="text-slate-900 font-sans font-bold">{exp.title}</strong>
-                      </span>
+        // Electricity wallet difference
+        const confirmedCoins = expenses.filter((exp) => exp.isCoin && exp.status !== 'pending');
+        const ozricCoinTotal = confirmedCoins
+          .filter((exp) => exp.paidBy === 'Ozric')
+          .reduce((sum, exp) => sum + exp.amount, 0);
+        const pawanCoinTotal = confirmedCoins
+          .filter((exp) => exp.paidBy === 'Pawan')
+          .reduce((sum, exp) => sum + exp.amount, 0);
+        const coinDiff = Math.abs(ozricCoinTotal - pawanCoinTotal);
+        const lowerCoinContributor = ozricCoinTotal < pawanCoinTotal ? 'Ozric' : 'Pawan';
+        const hasCoinDiff = coinDiff > 0.01;
+
+        // Rent & Recurring Bills Due Tomorrow
+        const today = new Date();
+        const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+        const tomorrowDay = tomorrow.getDate();
+        
+        const billsDueTomorrow = recurringBills?.filter(bill => bill.dueDate === tomorrowDay) || [];
+        
+        // Show fallback if they don't have recurring bills initialized in the DB yet
+        const showRentFallback = !recurringBills || recurringBills.length === 0;
+        
+        const totalNotificationCount = pendingCount + (hasCoinDiff ? 1 : 0) + billsDueTomorrow.length + (showRentFallback ? 1 : 0);
+
+        const mapCategoryLabel = (category: string) => {
+          if (category === 'Shared Groceries') return 'Grocery';
+          if (category === 'Electricity (Coins)') return 'Electricity';
+          if (category === 'Household Supplies') return 'Household';
+          if (category === 'Takeout/Delivery') return 'Takeout';
+          return category;
+        };
+
+        return (
+          <div className="bg-indigo-50 border-4 border-slate-900 rounded-3xl p-6 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] space-y-4 transition-all">
+            <div className="flex items-center justify-between border-b-2 border-slate-200 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
+                  <Bell className="w-4 h-4 text-white" />
+                </div>
+                <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider font-display">
+                  Smart Notifications
+                </h4>
+              </div>
+              {totalNotificationCount > 0 && (
+                <span className="bg-rose-500 text-white text-xs font-black px-2.5 py-1 rounded-full border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]">
+                  {totalNotificationCount}
+                </span>
+              )}
+            </div>
+
+            {errorMsg && (
+              <div className="p-2.5 bg-red-100 border-2 border-red-500 rounded-xl text-xs text-red-800 font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 animate-bounce" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            <div className="divide-y-2 divide-slate-200/60 space-y-4">
+              {/* 1. Pending Roommate Approvals */}
+              {pendingApprovals.length > 0 ? (
+                pendingApprovals.map((exp, index) => {
+                  const isDeletion = exp.deleteRequested;
+                  const requester = isDeletion ? exp.deleteRequestedBy : (exp.createdBy || exp.paidBy);
+                  const requesterNick = nicknames[requester as Roommate] || requester;
+                  
+                  return (
+                    <div key={exp.id} className={`${index > 0 ? 'pt-4' : ''} flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+                      <div className="space-y-1">
+                        <h5 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>
+                          {requesterNick} added {mapCategoryLabel(exp.category)} €{exp.amount.toFixed(0)}
+                        </h5>
+                        <p className="text-xs font-bold text-amber-600 uppercase tracking-wider font-mono">
+                          Approve?
+                        </p>
+                        {exp.title !== exp.category && (
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            Description: <strong className="text-slate-700 font-semibold">{exp.title}</strong>
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                        {isDeletion ? (
+                          <>
+                            <button
+                              type="button"
+                              id={`dash-btn-approve-del-${exp.id}`}
+                              disabled={actionLoading === exp.id}
+                              onClick={() => exp.id && handleApproveDeletion(exp.id)}
+                              className="bg-rose-500 hover:bg-rose-600 text-white border-2 border-slate-900 px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer disabled:opacity-50 flex items-center gap-1 font-sans"
+                            >
+                              <Check className="w-3.5 h-3.5" /> Approve Delete
+                            </button>
+                            <button
+                              type="button"
+                              id={`dash-btn-reject-del-${exp.id}`}
+                              disabled={actionLoading === exp.id}
+                              onClick={() => exp.id && handleRejectDeletion(exp.id)}
+                              className="bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-slate-900 px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer disabled:opacity-50 flex items-center gap-1 font-sans"
+                            >
+                              <X className="w-3.5 h-3.5" /> Reject
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              id={`dash-btn-approve-new-${exp.id}`}
+                              disabled={actionLoading === exp.id}
+                              onClick={() => exp.id && handleApproveCreation(exp.id)}
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white border-2 border-slate-900 px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer disabled:opacity-50 flex items-center gap-1 font-sans"
+                            >
+                              <Check className="w-3.5 h-3.5" /> Approve
+                            </button>
+                            <button
+                              type="button"
+                              id={`dash-btn-reject-new-${exp.id}`}
+                              disabled={actionLoading === exp.id}
+                              onClick={() => handleRejectCreation(exp)}
+                              className="bg-rose-100 hover:bg-rose-200 text-rose-800 border-2 border-slate-900 px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer disabled:opacity-50 flex items-center gap-1 font-sans"
+                            >
+                              <X className="w-3.5 h-3.5" /> Reject
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-[10px] text-slate-500 font-semibold leading-tight">
-                      {isDeletion ? (
+                  );
+                })
+              ) : null}
+
+              {/* 2. Electricity Wallet Difference */}
+              {hasCoinDiff && (
+                <div className={`pt-4 ${pendingCount === 0 ? 'first:pt-0 border-t-0' : 'border-t-2 border-slate-200/60'} flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+                  <div className="space-y-1">
+                    <h5 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 text-amber-500 fill-amber-400" />
+                      Electricity wallet difference
+                    </h5>
+                    <p className="text-2xl font-black text-slate-900 font-display">
+                      €{coinDiff.toFixed(0)}
+                    </p>
+                    <p className="text-xs text-slate-500 font-semibold leading-tight">
+                      {currentUser === lowerCoinContributor ? (
                         <>
-                          Requested by <strong className="text-slate-800 font-bold">{requesterNick}</strong>
+                          You are behind on electricity coin contributions. Add €{coinDiff.toFixed(0)} to balance the meter.
                         </>
                       ) : (
                         <>
-                          Paid by <strong className="text-slate-800 font-bold">{nicknames[exp.paidBy] || exp.paidBy}</strong>, split type <strong className="text-slate-800 font-bold font-mono">{exp.splitType}</strong>
+                          {nicknames[lowerCoinContributor] || lowerCoinContributor} is behind on electricity coin contributions by €{coinDiff.toFixed(0)}.
                         </>
                       )}
                     </p>
                   </div>
+                  
+                  {currentUser === lowerCoinContributor && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const coinSection = document.getElementById('coin-meter-card');
+                        if (coinSection) {
+                          coinSection.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      className="bg-amber-400 hover:bg-amber-500 text-slate-900 border-2 border-slate-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer flex items-center gap-1.5 self-start sm:self-auto font-sans"
+                    >
+                      <Coins className="w-3.5 h-3.5" /> Insert Coin
+                    </button>
+                  )}
+                </div>
+              )}
 
-                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                    {isDeletion ? (
-                      <>
-                        <button
-                          type="button"
-                          id={`dash-btn-approve-del-${exp.id}`}
-                          disabled={actionLoading === exp.id}
-                          onClick={() => exp.id && handleApproveDeletion(exp.id)}
-                          className="bg-rose-500 hover:bg-rose-600 text-white border-2 border-slate-900 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer disabled:opacity-50 flex items-center gap-1 font-sans"
-                        >
-                          <Check className="w-3.5 h-3.5" /> Approve Delete
-                        </button>
-                        <button
-                          type="button"
-                          id={`dash-btn-reject-del-${exp.id}`}
-                          disabled={actionLoading === exp.id}
-                          onClick={() => exp.id && handleRejectDeletion(exp.id)}
-                          className="bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-slate-900 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer disabled:opacity-50 flex items-center gap-1 font-sans"
-                        >
-                          <X className="w-3.5 h-3.5" /> Reject
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          id={`dash-btn-approve-new-${exp.id}`}
-                          disabled={actionLoading === exp.id}
-                          onClick={() => exp.id && handleApproveCreation(exp.id)}
-                          className="bg-emerald-500 hover:bg-emerald-600 text-white border-2 border-slate-900 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer disabled:opacity-50 flex items-center gap-1 font-sans"
-                        >
-                          <Check className="w-3.5 h-3.5" /> Approve
-                        </button>
-                        <button
-                          type="button"
-                          id={`dash-btn-reject-new-${exp.id}`}
-                          disabled={actionLoading === exp.id}
-                          onClick={() => handleRejectCreation(exp)}
-                          className="bg-rose-100 hover:bg-rose-200 text-rose-800 border-2 border-slate-900 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer disabled:opacity-50 flex items-center gap-1 font-sans"
-                        >
-                          <X className="w-3.5 h-3.5" /> Reject
-                        </button>
-                      </>
-                    )}
+              {/* 3. Rent & Recurring Bills Due Tomorrow */}
+              {billsDueTomorrow.length > 0 ? (
+                billsDueTomorrow.map((bill, idx) => (
+                  <div key={bill.id} className={`pt-4 ${(!hasCoinDiff && pendingCount === 0 && idx === 0) ? 'first:pt-0 border-t-0' : 'border-t-2 border-slate-200/60'} flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+                    <div className="space-y-1">
+                      <h5 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-1.5">
+                        <Calendar className="w-4 h-4 text-indigo-500" />
+                        {bill.name} due tomorrow
+                      </h5>
+                      <p className="text-2xl font-black text-slate-900 font-display">
+                        €{bill.amount.toFixed(0)}
+                      </p>
+                      <p className="text-xs text-slate-500 font-semibold leading-tight">
+                        Keep your private vault funded to auto-deduct recurring {bill.name.toLowerCase()} payments.
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : null}
+
+              {/* Fallback Rent reminder if they haven't set up recurring rent in their vault yet */}
+              {showRentFallback && (
+                <div className={`pt-4 ${(!hasCoinDiff && pendingCount === 0) ? 'first:pt-0 border-t-0' : 'border-t-2 border-slate-200/60'} flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+                  <div className="space-y-1">
+                    <h5 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-indigo-500 animate-pulse" />
+                      Rent due tomorrow
+                    </h5>
+                    <p className="text-2xl font-black text-slate-900 font-display">
+                      €350
+                    </p>
+                    <p className="text-xs text-slate-500 font-semibold leading-tight">
+                      Please make sure your private account has sufficient funds to cover the upcoming rent cycle.
+                    </p>
                   </div>
                 </div>
-              );
-            })}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Spend Tracker & Roommate Contact helper */}
       {(() => {

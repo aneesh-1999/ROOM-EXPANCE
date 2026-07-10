@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Roommate, Expense, Profile } from './types';
+import { Roommate, Expense, Profile, RecurringBill } from './types';
 import { subscribeExpenses, getProfile, updateLoginLogLogout, subscribeToSessionLog } from './dbService';
+import { subscribeRecurringBills } from './personalFinanceService';
 import { sendDiscordNotification } from './discordService';
+import { processNewExpenses } from './notificationService';
 import UserSelector from './components/UserSelector';
 import Dashboard from './components/Dashboard';
 import CoinMeter from './components/CoinMeter';
@@ -28,6 +30,7 @@ export default function App() {
   });
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'insights' | 'workspace' | 'personal'>('insights');
@@ -229,6 +232,21 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Real-time Firestore sync for recurring bills
+  useEffect(() => {
+    const unsubscribe = subscribeRecurringBills(currentUser, (data) => {
+      setRecurringBills(data);
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Trigger browser push notifications for incoming roommate expenses
+  useEffect(() => {
+    if (expenses.length > 0) {
+      processNewExpenses(expenses, currentUser, nicknames);
+    }
+  }, [expenses, currentUser, nicknames]);
+
   // Render Secret Admin Login Screen
   if (showAdminLogin && !isAdminLoggedIn) {
     return (
@@ -394,6 +412,7 @@ export default function App() {
                     onOpenReceiptScanner={() => setIsReceiptScannerOpen(true)}
                     nicknames={nicknames}
                     profiles={profiles}
+                    recurringBills={recurringBills}
                   />
 
                   <LendBorrowReport 

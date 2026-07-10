@@ -156,7 +156,7 @@ export default function CoinMeter({ expenses, currentUser, onLogSuccess, nicknam
   const pawanName = nicknames.Pawan || 'Pawan';
 
   return (
-    <div className="bg-white border-4 border-slate-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] relative overflow-hidden">
+    <div id="coin-meter-card" className="bg-white border-4 border-slate-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] relative overflow-hidden">
       
       {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b-4 border-slate-100 pb-4 mb-6 gap-3">
