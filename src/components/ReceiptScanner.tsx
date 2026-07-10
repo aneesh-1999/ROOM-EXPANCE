@@ -237,16 +237,38 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
         })
       });
 
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('text/html')) {
+        const htmlText = await response.text();
+        if (htmlText.trim().startsWith('<!DOCTYPE') || htmlText.includes('<html')) {
+          throw new Error('Static host detected (e.g. GitHub Pages) with no active backend server. The backend API is required for real-time OCR scanning. Please run the app using `npm run dev` locally or deploy to a full-stack container host.');
+        }
+      }
+
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Server returned an error status.');
+        let errMsg = 'Server returned an error status.';
+        try {
+          const errData = await response.json();
+          errMsg = errData.error || errMsg;
+        } catch (e) {
+          // Response body is not JSON
+        }
+        throw new Error(errMsg);
       }
 
       const data = await response.json();
       handleScanSuccess(data);
     } catch (err: any) {
       console.error('OCR scanning error:', err);
-      setErrorMsg('Receipt scanning failed: ' + (err.message || err) + '. Please try a different photo, or use the Simulator options below.');
+      
+      let userFriendlyMsg = err.message || err;
+      if (userFriendlyMsg.includes('Failed to fetch') || userFriendlyMsg.includes('fetch')) {
+        userFriendlyMsg = 'Could not connect to the backend server. The backend server might be starting up, or you are running a static-only export (like on GitHub Pages) without the Node.js backend. Use the Simulator options below for instant zero-setup testing!';
+      } else if (userFriendlyMsg.includes('Static host detected')) {
+        userFriendlyMsg = 'GitHub Pages / Static Host detected. Since static sites do not support dynamic Node.js backend servers, real-time receipt scanning requires a full-stack environment. Use the high-fidelity Simulator options below for instant zero-setup testing!';
+      }
+      
+      setErrorMsg('Receipt scanning failed: ' + userFriendlyMsg);
       setIsScanning(false);
     }
   };
