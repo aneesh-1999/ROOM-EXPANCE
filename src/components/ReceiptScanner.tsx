@@ -14,7 +14,8 @@ import {
   HelpCircle,
   Clock,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Key
 } from 'lucide-react';
 
 interface ReceiptScannerProps {
@@ -204,11 +205,86 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
   const [isSaving, setIsSaving] = useState(false);
   const [showItems, setShowItems] = useState(true);
 
+  // Client-side direct API fallback if running on static host (e.g. Netlify/GitHub Pages)
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('user_gemini_api_key') || '');
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [tempKey, setTempKey] = useState('');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Trigger camera or file upload
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  // Helper to call Gemini REST API directly from browser
+  const scanReceiptClientSide = async (base64Data: string, keyToUse: string) => {
+    const base64Clean = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${keyToUse}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: "image/jpeg",
+                  data: base64Clean
+                }
+              },
+              {
+                text: "Analyze this receipt or bill image. Extract the store or merchant name, the date of purchase (or transaction), the total amount, any individual line items with their names/descriptions and prices, and the VAT amount if listed."
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              store: { "type": "STRING", "description": "The name of the store or merchant." },
+              date: { "type": "STRING", "description": "Date of the transaction in YYYY-MM-DD format." },
+              total: { "type": "NUMBER", "description": "The total transaction amount in EUR." },
+              vat: { "type": "NUMBER", "description": "The VAT or Tax amount in EUR if explicitly listed." },
+              items: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    name: { "type": "STRING" },
+                    price: { "type": "NUMBER" }
+                  },
+                  required: ["name", "price"]
+                }
+              }
+            },
+            required: ["store", "total"]
+          }
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorJson = await response.json().catch(() => ({}));
+      const message = errorJson.error?.message || `HTTP error ${response.status}`;
+      throw new Error(`Direct Gemini API Error: ${message}`);
+    }
+
+    const result = await response.json();
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      throw new Error('Gemini API did not return any parseable content. Ensure your API Key is valid and active.');
+    }
+
+    try {
+      const parsed = JSON.parse(text);
+      return parsed;
+    } catch (e) {
+      throw new Error('Failed to parse Gemini response as JSON: ' + text);
+    }
   };
 
   // Convert uploaded file to base64 and send to OCR API
@@ -228,44 +304,52 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
       // Compress and resize to max 1024px before uploading
       const base64Data = await resizeImage(file, 1024, 1024);
 
-      const response = await fetch('/api/ocr-receipt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          image: base64Data,
-          mimeType: 'image/jpeg'
-        })
-      });
+      let data;
+      if (apiKey) {
+        // Direct browser OCR using user's own key
+        data = await scanReceiptClientSide(base64Data, apiKey);
+      } else {
+        // Express backend proxy call
+        const response = await fetch('/api/ocr-receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: base64Data,
+            mimeType: 'image/jpeg'
+          })
+        });
 
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('text/html')) {
-        const htmlText = await response.text();
-        if (htmlText.trim().startsWith('<!DOCTYPE') || htmlText.includes('<html')) {
-          throw new Error('Static host detected (e.g. GitHub Pages) with no active backend server. The backend API is required for real-time OCR scanning. Please run the app using `npm run dev` locally or deploy to a full-stack container host.');
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('text/html')) {
+          const htmlText = await response.text();
+          if (htmlText.trim().startsWith('<!DOCTYPE') || htmlText.includes('<html')) {
+            throw new Error('Static host detected (e.g. Netlify/GitHub Pages) with no active backend server. The backend API is required for real-time OCR scanning. Please provide your own Gemini API Key below to run OCR directly in your browser, or use our high-fidelity Simulator options.');
+          }
         }
+
+        if (!response.ok) {
+          let errMsg = 'Server returned an error status.';
+          try {
+            const errData = await response.json();
+            errMsg = errData.error || errMsg;
+          } catch (e) {
+            // Response body is not JSON
+          }
+          throw new Error(errMsg);
+        }
+
+        data = await response.json();
       }
 
-      if (!response.ok) {
-        let errMsg = 'Server returned an error status.';
-        try {
-          const errData = await response.json();
-          errMsg = errData.error || errMsg;
-        } catch (e) {
-          // Response body is not JSON
-        }
-        throw new Error(errMsg);
-      }
-
-      const data = await response.json();
       handleScanSuccess(data);
     } catch (err: any) {
       console.error('OCR scanning error:', err);
       
       let userFriendlyMsg = err.message || err;
       if (userFriendlyMsg.includes('Failed to fetch') || userFriendlyMsg.includes('fetch')) {
-        userFriendlyMsg = 'Could not connect to the backend server. The backend server might be starting up, or you are running a static-only export (like on GitHub Pages) without the Node.js backend. Use the Simulator options below for instant zero-setup testing!';
+        userFriendlyMsg = 'Could not connect to the backend server. The backend server might be starting up, or you are running a static-only export (like on Netlify or GitHub Pages) without the Node.js backend. Provide your own Gemini API Key below to scan directly from your browser, or use the Simulator options below for instant zero-setup testing!';
       } else if (userFriendlyMsg.includes('Static host detected')) {
-        userFriendlyMsg = 'GitHub Pages / Static Host detected. Since static sites do not support dynamic Node.js backend servers, real-time receipt scanning requires a full-stack environment. Use the high-fidelity Simulator options below for instant zero-setup testing!';
+        userFriendlyMsg = 'Static Host detected (e.g. Netlify). Since static sites do not support dynamic Node.js backend servers, real-time receipt scanning requires your own API key. Provide your own Gemini API Key below to run OCR directly in your browser, or use the high-fidelity Simulator options below for instant zero-setup testing!';
       }
       
       setErrorMsg('Receipt scanning failed: ' + userFriendlyMsg);
@@ -479,6 +563,89 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* CUSTOM API KEY FOR STATIC HOSTS */}
+              <div className="bg-slate-50 border-2 border-slate-900 rounded-2xl p-4 space-y-3 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Key className="w-4 h-4 text-indigo-650" />
+                    <div>
+                      <h5 className="text-xs font-black text-slate-900">Custom Gemini API Key</h5>
+                      <p className="text-[10px] text-slate-500 font-medium">For static hosts (Netlify / GitHub Pages)</p>
+                    </div>
+                  </div>
+                  {apiKey ? (
+                    <span className="text-[9px] font-black uppercase bg-emerald-100 border border-emerald-900 px-2.5 py-0.5 rounded-lg text-emerald-800">
+                      Active
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-black uppercase bg-amber-100 border border-amber-900 px-2.5 py-0.5 rounded-lg text-amber-800">
+                      Not Configured
+                    </span>
+                  )}
+                </div>
+
+                {!showKeyInput ? (
+                  <div className="flex items-center justify-between text-xs pt-1">
+                    <span className="text-slate-500 font-bold text-[10px] font-mono">
+                      {apiKey ? `••••••••${apiKey.slice(-4)}` : 'Using standard server API proxy'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTempKey(apiKey);
+                        setShowKeyInput(true);
+                      }}
+                      className="text-[10px] font-black text-indigo-650 hover:text-indigo-850 underline uppercase tracking-wider cursor-pointer"
+                    >
+                      {apiKey ? 'Edit Key' : 'Configure Key'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2 pt-1">
+                    <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">
+                      Enter a Google Gemini API Key. It is stored <strong>only</strong> in your local browser cache (`localStorage`) and never shared or sent to any server.
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        placeholder="AIzaSy..."
+                        value={tempKey}
+                        onChange={(e) => setTempKey(e.target.value)}
+                        className="flex-1 px-3 py-1.5 text-xs font-mono rounded-xl bg-white border-2 border-slate-900 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const trimmed = tempKey.trim();
+                          localStorage.setItem('user_gemini_api_key', trimmed);
+                          setApiKey(trimmed);
+                          setShowKeyInput(false);
+                          setErrorMsg('');
+                        }}
+                        className="px-3 py-1.5 text-xs font-black uppercase tracking-wider bg-slate-900 text-white rounded-xl border-2 border-slate-900 cursor-pointer hover:bg-slate-800"
+                      >
+                        Save
+                      </button>
+                      {apiKey && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            localStorage.removeItem('user_gemini_api_key');
+                            setApiKey('');
+                            setTempKey('');
+                            setShowKeyInput(false);
+                            setErrorMsg('');
+                          }}
+                          className="px-3 py-1.5 text-xs font-black uppercase tracking-wider bg-rose-50 text-rose-700 rounded-xl border-2 border-rose-900 cursor-pointer hover:bg-rose-100"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
