@@ -20,6 +20,7 @@ interface ExpenseFormProps {
   onClose: () => void;
   onSuccess: () => void;
   nicknames: Record<Roommate, string>;
+  onSwitchToScanner?: () => void;
 }
 
 const CATEGORIES: { name: Category; icon: React.ComponentType<any>; color: string; defaultAmount?: number }[] = [
@@ -32,7 +33,7 @@ const CATEGORIES: { name: Category; icon: React.ComponentType<any>; color: strin
   { name: 'Other', icon: MoreHorizontal, color: 'text-slate-700 bg-slate-100 border-2 border-slate-900' },
 ];
 
-export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames }: ExpenseFormProps) {
+export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames, onSwitchToScanner }: ExpenseFormProps) {
   const [title, setTitle] = useState('');
   const [amountStr, setAmountStr] = useState('');
   const [paidBy, setPaidBy] = useState<Roommate>(currentUser);
@@ -210,6 +211,17 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
 
         {/* FORM */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
+          {onSwitchToScanner && (
+            <button
+              type="button"
+              onClick={onSwitchToScanner}
+              className="w-full py-3 px-4 bg-amber-50 hover:bg-amber-100 border-2 border-dashed border-amber-500 rounded-2xl flex items-center justify-center gap-2 text-xs font-black text-amber-950 uppercase tracking-wider transition duration-200 cursor-pointer shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]"
+            >
+              <span className="text-sm">📸</span>
+              <span>Switch to AI Receipt Scanner (OCR)</span>
+            </button>
+          )}
+
           {errorMsg && (
             <div className="bg-rose-100 border-2 border-slate-900 text-slate-900 text-xs rounded-2xl p-4 flex items-start gap-2.5 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] font-bold">
               <span className="mt-0.5">⚠️</span>

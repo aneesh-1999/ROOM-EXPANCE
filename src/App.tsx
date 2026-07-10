@@ -6,6 +6,7 @@ import UserSelector from './components/UserSelector';
 import Dashboard from './components/Dashboard';
 import CoinMeter from './components/CoinMeter';
 import ExpenseForm from './components/ExpenseForm';
+import ReceiptScanner from './components/ReceiptScanner';
 import SettleUpModal from './components/SettleUpModal';
 import LendBorrowModal from './components/LendBorrowModal';
 import LendBorrowReport from './components/LendBorrowReport';
@@ -33,6 +34,7 @@ export default function App() {
   
   // Modals/Drawers
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [isReceiptScannerOpen, setIsReceiptScannerOpen] = useState(false);
   const [isSettleUpOpen, setIsSettleUpOpen] = useState(false);
   const [isLendBorrowOpen, setIsLendBorrowOpen] = useState(false);
   const [isDetailedReportOpen, setIsDetailedReportOpen] = useState(false);
@@ -389,6 +391,7 @@ export default function App() {
                     onOpenAddExpense={() => setIsAddExpenseOpen(true)}
                     onOpenSettleUp={() => setIsSettleUpOpen(true)}
                     onOpenLendBorrow={() => setIsLendBorrowOpen(true)}
+                    onOpenReceiptScanner={() => setIsReceiptScannerOpen(true)}
                     nicknames={nicknames}
                     profiles={profiles}
                   />
@@ -429,6 +432,19 @@ export default function App() {
           currentUser={currentUser}
           onClose={() => setIsAddExpenseOpen(false)}
           onSuccess={() => setIsAddExpenseOpen(false)}
+          nicknames={nicknames}
+          onSwitchToScanner={() => {
+            setIsAddExpenseOpen(false);
+            setIsReceiptScannerOpen(true);
+          }}
+        />
+      )}
+
+      {isReceiptScannerOpen && (
+        <ReceiptScanner 
+          currentUser={currentUser}
+          onClose={() => setIsReceiptScannerOpen(false)}
+          onSuccess={() => setIsReceiptScannerOpen(false)}
           nicknames={nicknames}
         />
       )}

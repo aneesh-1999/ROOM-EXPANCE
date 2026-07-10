@@ -1,6 +1,6 @@
 import React from 'react';
 import { Expense, Roommate, Profile } from '../types';
-import { ArrowUpRight, ArrowDownLeft, CheckCircle2, DollarSign, Wallet, Coins, Target, Sparkles, Phone, MessageSquare, Check, X, Clock, AlertCircle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, CheckCircle2, DollarSign, Wallet, Coins, Target, Sparkles, Phone, MessageSquare, Check, X, Clock, AlertCircle, Camera } from 'lucide-react';
 import { confirmExpense, deleteExpense, cancelDeleteExpense } from '../dbService';
 
 interface DashboardProps {
@@ -9,6 +9,7 @@ interface DashboardProps {
   onOpenAddExpense: () => void;
   onOpenSettleUp: () => void;
   onOpenLendBorrow: () => void;
+  onOpenReceiptScanner?: () => void;
   nicknames: Record<Roommate, string>;
   profiles?: Record<Roommate, Profile>;
 }
@@ -19,6 +20,7 @@ export default function Dashboard({
   onOpenAddExpense, 
   onOpenSettleUp, 
   onOpenLendBorrow, 
+  onOpenReceiptScanner,
   nicknames,
   profiles
 }: DashboardProps) {
@@ -199,6 +201,15 @@ export default function Dashboard({
           </div>
 
           <div className="flex flex-col sm:flex-row md:flex-col gap-3.5 justify-end w-full md:w-auto">
+            <button
+              id="btn-scan-receipt-quick"
+              onClick={onOpenReceiptScanner}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-300 bg-emerald-500 text-white border-3 border-slate-900 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Camera className="w-4 h-4" />
+              Scan Receipt (OCR)
+            </button>
+
             <button
               id="btn-add-expense-quick"
               onClick={onOpenAddExpense}
