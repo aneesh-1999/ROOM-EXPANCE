@@ -363,6 +363,7 @@ export default function AdminPanelModal({ expenses, currentUser: propCurrentUser
         splitType: '50/50',
         category: 'Shared Groceries',
         splitDetails: { OzricAmount: 24.30, PawanAmount: 24.30 },
+        paymentDistribution: { OzricAmount: 48.60, PawanAmount: 0 },
         notes: 'Includes eggs, bread, milk, and household cleaner.',
         status: 'confirmed'
       });
@@ -388,6 +389,7 @@ export default function AdminPanelModal({ expenses, currentUser: propCurrentUser
         category: 'Electricity (Coins)',
         isCoin: true,
         splitDetails: { OzricAmount: 1.00, PawanAmount: 1.00 },
+        paymentDistribution: { OzricAmount: 2.00, PawanAmount: 0 },
         notes: 'Coin inserted physically into electricity meter',
         status: 'confirmed'
       });

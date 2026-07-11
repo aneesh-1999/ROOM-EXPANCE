@@ -82,6 +82,7 @@ export function subscribeExpenses(callback: (expenses: Expense[]) => void, onErr
           category: data.category,
           timestamp: data.timestamp ? (data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp)) : new Date(),
           splitDetails: data.splitDetails,
+          paymentDistribution: data.paymentDistribution,
           isCoin: data.isCoin || false,
           isSettlement: data.isSettlement || false,
           isLendBorrow: data.isLendBorrow || false,

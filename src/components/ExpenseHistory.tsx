@@ -435,7 +435,22 @@ export default function ExpenseHistory({ expenses, currentUser, onDeleteSuccess,
 
                       {/* SUBDETAILS */}
                       <p className="text-[10px] text-slate-500 font-bold flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mt-1">
-                        <span>{isLendBorrow ? 'Lent' : 'Paid'} by <strong className="text-slate-900 underline decoration-2">{nicknames[exp.paidBy] || exp.paidBy}</strong></span>
+                        <span>
+                          {isLendBorrow ? 'Lent' : 'Paid'} by{' '}
+                          <strong className="text-slate-900 underline decoration-2">
+                            {exp.paymentDistribution ? (
+                              exp.paymentDistribution.OzricAmount > 0 && exp.paymentDistribution.PawanAmount > 0 ? (
+                                `${nicknames.Ozric} (€${exp.paymentDistribution.OzricAmount.toFixed(2)}) & ${nicknames.Pawan} (€${exp.paymentDistribution.PawanAmount.toFixed(2)})`
+                              ) : exp.paymentDistribution.OzricAmount > 0 ? (
+                                `${nicknames.Ozric} (€${exp.paymentDistribution.OzricAmount.toFixed(2)})`
+                              ) : (
+                                `${nicknames.Pawan} (€${exp.paymentDistribution.PawanAmount.toFixed(2)})`
+                              )
+                            ) : (
+                              nicknames[exp.paidBy] || exp.paidBy
+                            )}
+                          </strong>
+                        </span>
                         <span className="text-slate-300">•</span>
                         <span>{formattedDate}</span>
                         {!isSettlement && !isLendBorrow && (

@@ -109,7 +109,14 @@ export default function DetailedReportModal({ expenses, currentUser, onClose, ni
     }
 
     // 5. Payer Filter
-    if (payerFilter !== 'all' && exp.paidBy !== payerFilter) return false;
+    if (payerFilter !== 'all') {
+      if (exp.paymentDistribution) {
+        const amountPaid = payerFilter === 'Ozric' ? exp.paymentDistribution.OzricAmount : exp.paymentDistribution.PawanAmount;
+        if ((amountPaid ?? 0) <= 0) return false;
+      } else {
+        if (exp.paidBy !== payerFilter) return false;
+      }
+    }
 
     // 6. Category Filter
     if (categoryFilter !== 'all' && exp.category !== categoryFilter) return false;
@@ -124,10 +131,28 @@ export default function DetailedReportModal({ expenses, currentUser, onClose, ni
   expenses.forEach((expense) => {
     if (expense.status === 'pending') return;
     if (expense.isCoin) return; // Coin Meter contributions are NOT standard split expenses
-    if (expense.paidBy === 'Ozric') {
-      totalConfirmedPawanOwesOzric += expense.splitDetails.PawanAmount;
-    } else if (expense.paidBy === 'Pawan') {
-      totalConfirmedOzricOwesPawan += expense.splitDetails.OzricAmount;
+    
+    let payOzric = 0;
+    let payPawan = 0;
+    if (expense.paymentDistribution) {
+      payOzric = expense.paymentDistribution.OzricAmount ?? 0;
+      payPawan = expense.paymentDistribution.PawanAmount ?? 0;
+    } else {
+      if (expense.paidBy === 'Ozric') {
+        payOzric = expense.amount;
+      } else if (expense.paidBy === 'Pawan') {
+        payPawan = expense.amount;
+      }
+    }
+
+    const shareOzric = expense.splitDetails?.OzricAmount ?? 0;
+    const sharePawan = expense.splitDetails?.PawanAmount ?? 0;
+
+    const pawanOwedDiff = sharePawan - payPawan;
+    if (pawanOwedDiff > 0) {
+      totalConfirmedPawanOwesOzric += pawanOwedDiff;
+    } else if (pawanOwedDiff < 0) {
+      totalConfirmedOzricOwesPawan += Math.abs(pawanOwedDiff);
     }
   });
 
@@ -399,7 +424,16 @@ export default function DetailedReportModal({ expenses, currentUser, onClose, ni
       doc.text(catText, 95, y + 5);
 
       // Column 4: Paid By
-      const payerLabel = nicknames[exp.paidBy] || exp.paidBy;
+      let payerLabel = nicknames[exp.paidBy] || exp.paidBy;
+      if (exp.paymentDistribution) {
+        if (exp.paymentDistribution.OzricAmount > 0 && exp.paymentDistribution.PawanAmount > 0) {
+          payerLabel = 'Shared';
+        } else if (exp.paymentDistribution.OzricAmount > 0) {
+          payerLabel = nicknames.Ozric;
+        } else {
+          payerLabel = nicknames.Pawan;
+        }
+      }
       doc.text(payerLabel, 135, y + 5);
 
       // Column 5: Status
@@ -702,7 +736,20 @@ export default function DetailedReportModal({ expenses, currentUser, onClose, ni
                             </span>
                           </td>
                           <td className="px-4 py-3.5 font-bold text-slate-800">
-                            {nicknames[exp.paidBy] || exp.paidBy}
+                            {exp.paymentDistribution ? (
+                              exp.paymentDistribution.OzricAmount > 0 && exp.paymentDistribution.PawanAmount > 0 ? (
+                                <div className="text-xs">
+                                  <div>{nicknames.Ozric}: <span className="font-mono font-black">€{exp.paymentDistribution.OzricAmount.toFixed(2)}</span></div>
+                                  <div>{nicknames.Pawan}: <span className="font-mono font-black">€{exp.paymentDistribution.PawanAmount.toFixed(2)}</span></div>
+                                </div>
+                              ) : exp.paymentDistribution.OzricAmount > 0 ? (
+                                `${nicknames.Ozric} (€${exp.paymentDistribution.OzricAmount.toFixed(2)})`
+                              ) : (
+                                `${nicknames.Pawan} (€${exp.paymentDistribution.PawanAmount.toFixed(2)})`
+                              )
+                            ) : (
+                              nicknames[exp.paidBy] || exp.paidBy
+                            )}
                           </td>
                           <td className="px-4 py-3.5 text-center">
                             {isPending ? (

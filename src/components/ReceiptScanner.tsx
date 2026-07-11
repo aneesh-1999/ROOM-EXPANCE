@@ -201,6 +201,25 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
   const [customOzric, setCustomOzric] = useState<number>(0);
   const [customPawan, setCustomPawan] = useState<number>(0);
 
+  // Payment distribution
+  const [payOzricAmount, setPayOzricAmount] = useState('');
+  const [payPawanAmount, setPayPawanAmount] = useState('');
+  const [isPaymentEdited, setIsPaymentEdited] = useState(false);
+
+  // Keep payment distribution in sync with total amount if not edited manually
+  React.useEffect(() => {
+    if (scanResult && !isPaymentEdited) {
+      const total = scanResult.total;
+      if (currentUser === 'Ozric') {
+        setPayOzricAmount(total > 0 ? total.toFixed(2) : '');
+        setPayPawanAmount('0.00');
+      } else {
+        setPayPawanAmount(total > 0 ? total.toFixed(2) : '');
+        setPayOzricAmount('0.00');
+      }
+    }
+  }, [scanResult?.total, currentUser, isPaymentEdited]);
+
   const [errorMsg, setErrorMsg] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showItems, setShowItems] = useState(true);
@@ -367,6 +386,7 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
     setCustomOzric(currentUser === 'Ozric' ? half : parseFloat((data.total - half).toFixed(2)));
     setCustomPawan(currentUser === 'Pawan' ? half : parseFloat((data.total - half).toFixed(2)));
     setSelectedSplit('50_50');
+    setIsPaymentEdited(false);
   };
 
   // Run mock simulator
@@ -441,6 +461,15 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
       splitType = 'custom';
     }
 
+    const pOzric = parseFloat(payOzricAmount) || 0;
+    const pPawan = parseFloat(payPawanAmount) || 0;
+    const totalPaid = pOzric + pPawan;
+    if (Math.abs(totalPaid - total) > 0.05) {
+      setErrorMsg(`The sum of roommate payment contributions (€${totalPaid.toFixed(2)}) must equal the total receipt amount (€${total.toFixed(2)}).`);
+      setIsSaving(false);
+      return;
+    }
+
     const category = getCategoryForStore(store);
 
     // Build line items notes
@@ -456,13 +485,17 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
       await addExpense({
         title: `${store} Receipt`,
         amount: total,
-        paidBy: currentUser, // Scanned by the active roommate who paid
+        paidBy: pOzric >= pPawan ? 'Ozric' : 'Pawan',
         category,
         splitType,
         notes: notes.trim(),
         splitDetails: {
           OzricAmount: parseFloat(ozricShare.toFixed(2)),
           PawanAmount: parseFloat(pawanShare.toFixed(2))
+        },
+        paymentDistribution: {
+          OzricAmount: parseFloat(pOzric.toFixed(2)),
+          PawanAmount: parseFloat(pPawan.toFixed(2))
         },
         createdBy: currentUser,
         status: 'pending' // Enforces standard roommates rules - needs approval of other roommate
@@ -726,8 +759,121 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
                 </span>
               </div>
 
+              {/* PAYMENT DISTRIBUTION */}
+              <div className="space-y-3 pt-1 border-t-2 border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
+                    Payment Distribution
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-black font-mono">
+                    Who paid what at shop
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 border-2 border-slate-900 p-4 rounded-2xl space-y-4 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
+                  {/* Quick Fill Actions */}
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const total = scanResult.total;
+                        setPayOzricAmount(total.toFixed(2));
+                        setPayPawanAmount('0.00');
+                        setIsPaymentEdited(true);
+                      }}
+                      className="px-2 py-1.5 bg-white border border-slate-900 text-[10px] font-black uppercase tracking-wider rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer text-center truncate"
+                    >
+                      {nicknames.Ozric} Paid All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const total = scanResult.total;
+                        setPayPawanAmount(total.toFixed(2));
+                        setPayOzricAmount('0.00');
+                        setIsPaymentEdited(true);
+                      }}
+                      className="px-2 py-1.5 bg-white border border-slate-900 text-[10px] font-black uppercase tracking-wider rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer text-center truncate"
+                    >
+                      {nicknames.Pawan} Paid All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const total = scanResult.total;
+                        const half = (total / 2).toFixed(2);
+                        setPayOzricAmount(half);
+                        setPayPawanAmount(half);
+                        setIsPaymentEdited(true);
+                      }}
+                      className="px-2 py-1.5 bg-white border border-slate-900 text-[10px] font-black uppercase tracking-wider rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer text-center truncate"
+                    >
+                      Split 50/50
+                    </button>
+                  </div>
+
+                  {/* Input Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-slate-500 font-black font-mono uppercase">
+                        {nicknames.Ozric} Paid (€)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 font-mono font-bold text-xs">€</span>
+                        <input
+                          id="input-pay-dist-ozric"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={payOzricAmount}
+                          onChange={(e) => {
+                            setPayOzricAmount(e.target.value);
+                            setIsPaymentEdited(true);
+                          }}
+                          className="w-full pl-7 pr-3 py-2 rounded-xl bg-white border-2 border-slate-900 text-xs font-black font-mono text-slate-900 focus:bg-indigo-50/50 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-slate-500 font-black font-mono uppercase">
+                        {nicknames.Pawan} Paid (€)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 font-mono font-bold text-xs">€</span>
+                        <input
+                          id="input-pay-dist-pawan"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={payPawanAmount}
+                          onChange={(e) => {
+                            setPayPawanAmount(e.target.value);
+                            setIsPaymentEdited(true);
+                          }}
+                          className="w-full pl-7 pr-3 py-2 rounded-xl bg-white border-2 border-slate-900 text-xs font-black font-mono text-slate-900 focus:bg-indigo-50/50 outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {scanResult && (
+                    <div className="pt-2 border-t border-slate-200 flex justify-between text-[10px] font-mono font-bold">
+                      <span className="text-slate-500">Target Total: €{scanResult.total.toFixed(2)}</span>
+                      <span className={`font-black ${
+                        Math.abs((parseFloat(payOzricAmount) || 0) + (parseFloat(payPawanAmount) || 0) - scanResult.total) < 0.05
+                          ? 'text-emerald-600'
+                          : 'text-rose-600'
+                      }`}>
+                        Sum Entered: €{((parseFloat(payOzricAmount) || 0) + (parseFloat(payPawanAmount) || 0)).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* THE CRUCIAL SPLIT SELECTOR */}
-              <div className="space-y-3.5 border-t-3 border-slate-100 pt-4">
+              <div className="space-y-3.5 border-t-2 border-slate-100 pt-4">
                 <div className="flex items-center gap-1.5">
                   <HelpCircle className="w-4 h-4 text-indigo-500" />
                   <h4 className="text-xs font-black uppercase text-slate-600 tracking-wider font-mono">

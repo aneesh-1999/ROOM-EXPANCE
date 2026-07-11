@@ -92,10 +92,28 @@ export default function InsightsDashboard({
 
     confirmedExpenses.forEach((exp) => {
       if (exp.isCoin || exp.isSettlement) return;
-      if (exp.paidBy === 'Ozric') {
-        pawanOwes += exp.splitDetails?.PawanAmount || 0;
-      } else if (exp.paidBy === 'Pawan') {
-        ozricOwes += exp.splitDetails?.OzricAmount || 0;
+      
+      let payOzric = 0;
+      let payPawan = 0;
+      if (exp.paymentDistribution) {
+        payOzric = exp.paymentDistribution.OzricAmount ?? 0;
+        payPawan = exp.paymentDistribution.PawanAmount ?? 0;
+      } else {
+        if (exp.paidBy === 'Ozric') {
+          payOzric = exp.amount;
+        } else if (exp.paidBy === 'Pawan') {
+          payPawan = exp.amount;
+        }
+      }
+
+      const shareOzric = exp.splitDetails?.OzricAmount ?? 0;
+      const sharePawan = exp.splitDetails?.PawanAmount ?? 0;
+
+      const pawanOwedDiff = sharePawan - payPawan;
+      if (pawanOwedDiff > 0) {
+        pawanOwes += pawanOwedDiff;
+      } else if (pawanOwedDiff < 0) {
+        ozricOwes += Math.abs(pawanOwedDiff);
       }
     });
 
@@ -124,11 +142,20 @@ export default function InsightsDashboard({
       if (stats[cat]) {
         stats[cat].total += e.amount;
         stats[cat].count += 1;
-        if (e.paidBy === 'Ozric') {
-          stats[cat].OzricPaid += e.amount;
+        let payOzric = 0;
+        let payPawan = 0;
+        if (e.paymentDistribution) {
+          payOzric = e.paymentDistribution.OzricAmount ?? 0;
+          payPawan = e.paymentDistribution.PawanAmount ?? 0;
         } else {
-          stats[cat].PawanPaid += e.amount;
+          if (e.paidBy === 'Ozric') {
+            payOzric = e.amount;
+          } else {
+            payPawan = e.amount;
+          }
         }
+        stats[cat].OzricPaid += payOzric;
+        stats[cat].PawanPaid += payPawan;
         stats[cat].OzricShare += e.splitDetails?.OzricAmount || 0;
         stats[cat].PawanShare += e.splitDetails?.PawanAmount || 0;
       }
@@ -195,8 +222,20 @@ export default function InsightsDashboard({
     let pawanShare = 0;
 
     spendingExpenses.forEach(e => {
-      if (e.paidBy === 'Ozric') ozricPaid += e.amount;
-      else pawanPaid += e.amount;
+      let payOzric = 0;
+      let payPawan = 0;
+      if (e.paymentDistribution) {
+        payOzric = e.paymentDistribution.OzricAmount ?? 0;
+        payPawan = e.paymentDistribution.PawanAmount ?? 0;
+      } else {
+        if (e.paidBy === 'Ozric') {
+          payOzric = e.amount;
+        } else {
+          payPawan = e.amount;
+        }
+      }
+      ozricPaid += payOzric;
+      pawanPaid += payPawan;
 
       ozricShare += e.splitDetails?.OzricAmount || 0;
       pawanShare += e.splitDetails?.PawanAmount || 0;

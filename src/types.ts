@@ -23,6 +23,10 @@ export interface Expense {
     OzricAmount: number;
     PawanAmount: number;
   };
+  paymentDistribution?: {
+    OzricAmount: number;
+    PawanAmount: number;
+  };
   isCoin?: boolean; // If logged via Coin Meter Quick Log
   isSettlement?: boolean; // If this represents a "Settle Up" transaction
   isLendBorrow?: boolean; // If this represents a lend/borrow direct cash or transfer entry

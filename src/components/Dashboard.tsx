@@ -97,10 +97,28 @@ export default function Dashboard({
   expenses.forEach((expense) => {
     if (expense.status === 'pending') return;
     if (expense.isCoin) return; // Coin Meter contributions are NOT standard split expenses
-    if (expense.paidBy === 'Ozric') {
-      totalPawanOwesOzric += expense.splitDetails.PawanAmount;
-    } else if (expense.paidBy === 'Pawan') {
-      totalOzricOwesPawan += expense.splitDetails.OzricAmount;
+    
+    let payOzric = 0;
+    let payPawan = 0;
+    if (expense.paymentDistribution) {
+      payOzric = expense.paymentDistribution.OzricAmount ?? 0;
+      payPawan = expense.paymentDistribution.PawanAmount ?? 0;
+    } else {
+      if (expense.paidBy === 'Ozric') {
+        payOzric = expense.amount;
+      } else if (expense.paidBy === 'Pawan') {
+        payPawan = expense.amount;
+      }
+    }
+
+    const shareOzric = expense.splitDetails?.OzricAmount ?? 0;
+    const sharePawan = expense.splitDetails?.PawanAmount ?? 0;
+
+    const pawanOwedDiff = sharePawan - payPawan;
+    if (pawanOwedDiff > 0) {
+      totalPawanOwesOzric += pawanOwedDiff;
+    } else if (pawanOwedDiff < 0) {
+      totalOzricOwesPawan += Math.abs(pawanOwedDiff);
     }
   });
 
@@ -151,9 +169,17 @@ export default function Dashboard({
   });
 
   const totalMonthlySpend = currentMonthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const userPaidThisMonth = currentMonthExpenses
-    .filter(exp => exp.paidBy === currentUser)
-    .reduce((sum, exp) => sum + exp.amount, 0);
+  const userPaidThisMonth = currentMonthExpenses.reduce((sum, exp) => {
+    let amtPaid = 0;
+    if (exp.paymentDistribution) {
+      amtPaid = currentUser === 'Ozric' ? (exp.paymentDistribution.OzricAmount ?? 0) : (exp.paymentDistribution.PawanAmount ?? 0);
+    } else {
+      if (exp.paidBy === currentUser) {
+        amtPaid = exp.amount;
+      }
+    }
+    return sum + amtPaid;
+  }, 0);
 
   return (
     <div className="space-y-6">

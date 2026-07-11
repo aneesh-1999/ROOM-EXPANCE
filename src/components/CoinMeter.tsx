@@ -55,12 +55,16 @@ export default function CoinMeter({ expenses, currentUser, onLogSuccess, nicknam
 
   // 2. CALCULATE RUNNING BALANCES
   const ozricCoinTotal = confirmedCoins
-    .filter((exp) => exp.paidBy === 'Ozric')
-    .reduce((sum, exp) => sum + exp.amount, 0);
+    .reduce((sum, exp) => {
+      const amt = exp.paymentDistribution ? (exp.paymentDistribution.OzricAmount ?? 0) : (exp.paidBy === 'Ozric' ? exp.amount : 0);
+      return sum + amt;
+    }, 0);
 
   const pawanCoinTotal = confirmedCoins
-    .filter((exp) => exp.paidBy === 'Pawan')
-    .reduce((sum, exp) => sum + exp.amount, 0);
+    .reduce((sum, exp) => {
+      const amt = exp.paymentDistribution ? (exp.paymentDistribution.PawanAmount ?? 0) : (exp.paidBy === 'Pawan' ? exp.amount : 0);
+      return sum + amt;
+    }, 0);
 
   const totalCoinsAdded = ozricCoinTotal + pawanCoinTotal;
 
