@@ -33,7 +33,19 @@ export default function App() {
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'insights' | 'workspace' | 'personal'>('insights');
+  const [activeTab, setActiveTab] = useState<'insights' | 'workspace' | 'personal'>(() => {
+    // Persistent tab restoration on launch for authenticated users
+    const savedRoommate = (localStorage.getItem('activeRoommate') as Roommate) || 'Ozric';
+    const isUnlocked = localStorage.getItem(`unlocked_${savedRoommate}`) === 'true';
+    if (isUnlocked) {
+      const savedTab = localStorage.getItem('lastAuthenticatedTab');
+      if (savedTab === 'workspace' || savedTab === 'personal') {
+        return savedTab as 'insights' | 'workspace' | 'personal';
+      }
+      return 'workspace'; // Default to workspace (the Dashboard) when logged in
+    }
+    return 'insights'; // Show home page/insights if not logged in
+  });
   
   // Modals/Drawers
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
@@ -249,6 +261,13 @@ export default function App() {
       processNewExpenses(expenses, currentUser, nicknames);
     }
   }, [expenses, currentUser, nicknames]);
+
+  // Keep last authenticated tab in sync for persistence across app reloads
+  useEffect(() => {
+    if (unlockedUsers[currentUser] && (activeTab === 'workspace' || activeTab === 'personal')) {
+      localStorage.setItem('lastAuthenticatedTab', activeTab);
+    }
+  }, [activeTab, currentUser, unlockedUsers]);
 
   // Register FCM registration token and init foreground listeners on roommate unlock
   useEffect(() => {
