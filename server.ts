@@ -12,20 +12,27 @@ const PORT = 3000;
 const app = express();
 
 // Setup VAPID keys for Push API
-let vapidKeys: { publicKey: string; privateKey: string };
+const DEFAULT_VAPID_KEYS = {
+  publicKey: "BOsApQc6aCAyYUET9TdepJgOe6btywB0EZXXychTfiTAQZKprvApmVLY5Ps4F-yrm_1eYWDtoALwtse1JlDHaDA",
+  privateKey: "FepCEzgaBuXgYaWzPdJrDQVaPICJfLjfFGSJZRPuN70"
+};
+
+let vapidKeys = DEFAULT_VAPID_KEYS;
 const keysPath = path.join(process.cwd(), 'vapidKeys.json');
 
 if (fs.existsSync(keysPath)) {
   try {
     vapidKeys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
   } catch (e) {
-    console.error('Error parsing vapidKeys.json, generating new keys:', e);
-    vapidKeys = webpush.generateVAPIDKeys();
-    fs.writeFileSync(keysPath, JSON.stringify(vapidKeys, null, 2));
+    console.error('Error parsing vapidKeys.json, using fallback stable keys:', e);
+    vapidKeys = DEFAULT_VAPID_KEYS;
   }
 } else {
-  vapidKeys = webpush.generateVAPIDKeys();
-  fs.writeFileSync(keysPath, JSON.stringify(vapidKeys, null, 2));
+  try {
+    fs.writeFileSync(keysPath, JSON.stringify(DEFAULT_VAPID_KEYS, null, 2));
+  } catch (err) {
+    console.error('Failed to write stable default vapidKeys.json:', err);
+  }
 }
 
 // Configure web-push with VAPID details (using user email from metadata)

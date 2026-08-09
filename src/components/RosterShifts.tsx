@@ -233,7 +233,7 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
       };
 
       if (editingShiftId) {
-        await updateShift(editingShiftId, shiftData);
+        await updateShift(editingShiftId, shiftData, currentUser);
         setSuccessMsg('Shift updated successfully!');
         setEditingShiftId(null);
       } else {
@@ -305,7 +305,7 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
     setSuccessMsg('');
     setDeleteModalOpen(false);
     try {
-      await deleteShift(id);
+      await deleteShift(id, currentUser);
       setSuccessMsg('Shift deleted successfully.');
     } catch (err: any) {
       setErrorMsg('Failed to delete shift: ' + err.message);
@@ -336,7 +336,7 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
     try {
       await updateShift(shift.id, {
         completed: !shift.completed
-      });
+      }, currentUser);
     } catch (err: any) {
       console.error('Failed to toggle completion status', err);
     }

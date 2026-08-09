@@ -15,7 +15,7 @@ import {
 import { db } from './firebase';
 import { Expense, Roommate, Profile, Category, LoginLog, Shift } from './types';
 import { sendDiscordNotification } from './discordService';
-import { broadcastPushToOtherRoommates } from './notificationService';
+import { broadcastPushToOtherRoommates, sendPushNotificationToUser } from './notificationService';
 
 // Operation Types as requested by Firestore integration skill
 export enum OperationType {
@@ -218,6 +218,18 @@ export async function deleteExpense(id: string, actor?: string) {
           { name: 'Deleted By', value: actor || 'System', inline: true }
         ]
       }, actor);
+
+      // Broadcast standard Push notification to other roommates
+      try {
+        const actorName = actor || 'Roommate';
+        broadcastPushToOtherRoommates(actorName as Roommate, {
+          title: `🗑️ Transaction Deleted`,
+          body: `${actorName} deleted ledger item: "${details.title || 'Untitled'}" (€${Number(details.amount || 0).toFixed(2)})`,
+          tag: `delete-${id}`
+        });
+      } catch (pushErr) {
+        console.error('[Push API] Error broadcasting push for deleteExpense:', pushErr);
+      }
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `${EXPENSES_COLLECTION}/${id}`);
@@ -248,6 +260,17 @@ export async function requestDeleteExpense(id: string, requester: Roommate) {
           { name: 'Requested By', value: requester, inline: true }
         ]
       }, requester);
+
+      // Broadcast standard Push notification to other roommates
+      try {
+        broadcastPushToOtherRoommates(requester, {
+          title: `⚠️ Deletion Requested`,
+          body: `${requester} requested deletion of ledger item: "${details.title || 'Untitled'}" (€${Number(details.amount || 0).toFixed(2)})`,
+          tag: `request-delete-${id}`
+        });
+      } catch (pushErr) {
+        console.error('[Push API] Error broadcasting push for requestDeleteExpense:', pushErr);
+      }
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${EXPENSES_COLLECTION}/${id}`);
@@ -277,6 +300,18 @@ export async function cancelDeleteExpense(id: string, actor?: string) {
           { name: 'Restored By', value: actor || 'System', inline: true }
         ]
       }, actor);
+
+      // Broadcast standard Push notification to other roommates
+      try {
+        const actorName = actor || 'Roommate';
+        broadcastPushToOtherRoommates(actorName as Roommate, {
+          title: `❌ Deletion Rejected`,
+          body: `${actorName} rejected deletion and restored: "${details.title || 'Untitled'}" (€${Number(details.amount || 0).toFixed(2)})`,
+          tag: `cancel-delete-${id}`
+        });
+      } catch (pushErr) {
+        console.error('[Push API] Error broadcasting push for cancelDeleteExpense:', pushErr);
+      }
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${EXPENSES_COLLECTION}/${id}`);
@@ -305,6 +340,21 @@ export async function confirmExpense(id: string, actor?: string) {
           { name: 'Approved By', value: actor || 'System', inline: true }
         ]
       }, actor);
+
+      // Send standard Web Push to the creator of the expense
+      try {
+        const actorName = actor || 'Roommate';
+        const creator = details.createdBy || details.paidBy;
+        if (creator && creator !== actorName) {
+          sendPushNotificationToUser(creator as Roommate, {
+            title: `✅ Transaction Approved`,
+            body: `${actorName} approved your logged item: "${details.title || 'Untitled'}" (€${Number(details.amount || 0).toFixed(2)})`,
+            tag: `confirm-${id}`
+          });
+        }
+      } catch (pushErr) {
+        console.error('[Push API] Error broadcasting push for confirmExpense:', pushErr);
+      }
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${EXPENSES_COLLECTION}/${id}`);
@@ -665,25 +715,100 @@ export async function addShift(shift: Omit<Shift, 'id'>) {
       ...shift,
       createdAt: serverTimestamp()
     });
+
+    // Broadcast standard Push notification to other roommates
+    try {
+      const actorName = shift.user;
+      const formattedDate = new Date(shift.date).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', weekday: 'short' });
+      broadcastPushToOtherRoommates(actorName, {
+        title: `📅 Roster Update: Shift Added`,
+        body: `${actorName} added shift "${shift.title}" on ${formattedDate} (${shift.startTime} - ${shift.endTime})`,
+        tag: `shift-added-${docRef.id}`
+      });
+    } catch (pushErr) {
+      console.error('[Push API] Error broadcasting push for addShift:', pushErr);
+    }
+
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, SHIFTS_COLLECTION);
   }
 }
 
-export async function updateShift(id: string, shift: Partial<Shift>) {
+export async function updateShift(id: string, shift: Partial<Shift>, actor?: Roommate) {
   try {
     const docRef = doc(db, SHIFTS_COLLECTION, id);
+    const docSnap = await getDoc(docRef);
+    let oldShift: any = null;
+    if (docSnap.exists()) {
+      oldShift = docSnap.data();
+    }
+
     await updateDoc(docRef, shift);
+
+    // Broadcast push notification
+    if (oldShift) {
+      const changedKeys = Object.keys(shift);
+      const hasRosterChanges = changedKeys.some(k => ['title', 'date', 'startTime', 'endTime', 'completed'].includes(k));
+
+      if (hasRosterChanges) {
+        try {
+          const actorName = actor || shift.user || oldShift.user;
+          const formattedDate = new Date(shift.date || oldShift.date).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', weekday: 'short' });
+          
+          let notifTitle = `📅 Roster Update: Shift Modified`;
+          let notifBody = `${actorName} modified shift "${shift.title || oldShift.title}" on ${formattedDate}`;
+          
+          // If they toggled completion
+          if (shift.completed !== undefined && shift.completed !== oldShift.completed) {
+            if (shift.completed) {
+              notifTitle = `✅ Shift Completed!`;
+              notifBody = `${actorName} marked shift "${shift.title || oldShift.title}" as completed on ${formattedDate}!`;
+            } else {
+              notifTitle = `📅 Shift Uncompleted`;
+              notifBody = `${actorName} marked shift "${shift.title || oldShift.title}" as incomplete.`;
+            }
+          }
+          
+          broadcastPushToOtherRoommates(oldShift.user, {
+            title: notifTitle,
+            body: notifBody,
+            tag: `shift-updated-${id}`
+          });
+        } catch (pushErr) {
+          console.error('[Push API] Error broadcasting push for updateShift:', pushErr);
+        }
+      }
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${SHIFTS_COLLECTION}/${id}`);
   }
 }
 
-export async function deleteShift(id: string) {
+export async function deleteShift(id: string, actor?: Roommate) {
   try {
     const docRef = doc(db, SHIFTS_COLLECTION, id);
+    const docSnap = await getDoc(docRef);
+    let oldShift: any = null;
+    if (docSnap.exists()) {
+      oldShift = docSnap.data();
+    }
+
     await deleteDoc(docRef);
+
+    if (oldShift) {
+      try {
+        const actorName = actor || oldShift.user;
+        const formattedDate = new Date(oldShift.date).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', weekday: 'short' });
+        broadcastPushToOtherRoommates(oldShift.user, {
+          title: `🗑️ Roster Update: Shift Deleted`,
+          body: `${actorName} removed shift "${oldShift.title}" on ${formattedDate}`,
+          tag: `shift-deleted-${id}`
+        });
+      } catch (pushErr) {
+        console.error('[Push API] Error broadcasting push for deleteShift:', pushErr);
+      }
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, `${SHIFTS_COLLECTION}/${id}`);
   }
