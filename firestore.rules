@@ -6,6 +6,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Work shifts and roster entries
+    match /shifts/{shiftId} {
+      allow read, write: if true;
+    }
+
     // Roommate security profiles
     match /profiles/{profileId} {
       allow read, write: if true;

@@ -21,14 +21,18 @@ import {
   deleteSavingsGoal, 
   addRecurringBill, 
   deleteRecurringBill, 
-  payRecurringBill 
+  payRecurringBill,
+  updateAccount,
+  deleteAccount,
+  transferFunds
 } from '../personalFinanceService';
 import { 
   Wallet, 
   CreditCard, 
   Coins, 
   Plus, 
-  Trash2, 
+  Trash2,
+  Edit2,
   Search, 
   Filter, 
   Calendar as CalendarIcon, 
@@ -52,7 +56,9 @@ import {
   AlertTriangle,
   RefreshCw,
   X,
-  UploadCloud
+  UploadCloud,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface PersonalFinanceProps {
@@ -64,9 +70,9 @@ interface PersonalFinanceProps {
   profiles: Record<Roommate, { id: Roommate; avatar?: string; accentColor?: string; nickname?: string }>;
 }
 
-const EXCHANGE_RATES = {
+const DEFAULT_EXCHANGE_RATES = {
   EUR: 1.0,
-  NPR: 142.50, // 1 EUR = 142.50 NPR
+  NPR: 175.72, // 1 EUR = 175.72 NPR (Accurate live rate fallback)
   USD: 1.09,   // 1 EUR = 1.09 USD
 };
 
@@ -99,6 +105,46 @@ export default function PersonalFinance({
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
 
   // Subscriptions management
+  const [exchangeRates, setExchangeRates] = useState(DEFAULT_EXCHANGE_RATES);
+  const [isFetchingRates, setIsFetchingRates] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveRates = async () => {
+      setIsFetchingRates(true);
+      try {
+        const response = await fetch('https://open.er-api.com/v6/latest/EUR');
+        if (!response.ok) throw new Error('API request failed');
+        const data = await response.json();
+        if (data && data.rates && isMounted) {
+          const fetchedNPR = data.rates.NPR || DEFAULT_EXCHANGE_RATES.NPR;
+          const fetchedUSD = data.rates.USD || DEFAULT_EXCHANGE_RATES.USD;
+          setExchangeRates({
+            EUR: 1.0,
+            NPR: parseFloat(fetchedNPR.toFixed(4)),
+            USD: parseFloat(fetchedUSD.toFixed(4))
+          });
+          console.log('Successfully fetched live exchange rates from open.er-api.com:', data.rates);
+        }
+      } catch (err) {
+        console.error('Failed to fetch live exchange rates, falling back to static default rates:', err);
+      } finally {
+        if (isMounted) setIsFetchingRates(false);
+      }
+    };
+    fetchLiveRates();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Transfer Funds State
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [transferSourceId, setTransferSourceId] = useState('');
+  const [transferDestId, setTransferDestId] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().split('T')[0]);
+
   useEffect(() => {
     if (!isUnlocked) return;
 
@@ -118,11 +164,58 @@ export default function PersonalFinance({
   // Tab State
   const [activeSection, setActiveSection] = useState<'dashboard' | 'transactions' | 'savings' | 'recurring'>('dashboard');
 
+  // Privacy State
+  const [privacyMode, setPrivacyMode] = useState(true);
+
   // Input states for new items
   const [isAddTxOpen, setIsAddTxOpen] = useState(false);
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  const [isEditAccountOpen, setIsEditAccountOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<PersonalAccount | null>(null);
+  const [selectedStatementAccount, setSelectedStatementAccount] = useState<PersonalAccount | null>(null);
+  const [statementSearchQuery, setStatementSearchQuery] = useState('');
   const [isAddGoalOpen, setIsAddGoalOpen] = useState(false);
   const [isAddBillOpen, setIsAddBillOpen] = useState(false);
+
+  // Custom Confirmation and Alert Dialog states
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const [alertDialog, setAlertDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+  });
+
+  const requestConfirm = (title: string, message: string, onConfirm: () => void | Promise<void>) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+    });
+  };
+
+  const triggerAlert = (title: string, message: string) => {
+    setAlertDialog({
+      isOpen: true,
+      title,
+      message,
+    });
+  };
 
   // New Transaction Form state
   const [txTitle, setTxTitle] = useState('');
@@ -135,6 +228,7 @@ export default function PersonalFinance({
   const [txTags, setTxTags] = useState('');
   const [receiptBase64, setReceiptBase64] = useState<string | null>(null);
   const [receiptName, setReceiptName] = useState<string | null>(null);
+  const [txDate, setTxDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   // New Account Form state
   const [accName, setAccName] = useState('');
@@ -182,15 +276,27 @@ export default function PersonalFinance({
     }
   }, [accounts, txAccountId]);
 
+  // Automatically select transfer source and destination accounts
+  useEffect(() => {
+    if (accounts.length > 0) {
+      if (!transferSourceId) {
+        setTransferSourceId(accounts[0].id);
+      }
+      if (!transferDestId && accounts.length > 1) {
+        setTransferDestId(accounts[1].id);
+      }
+    }
+  }, [accounts, transferSourceId, transferDestId]);
+
   // Convert given currency to EUR equivalent
   const convertToEUR = (amount: number, from: 'EUR' | 'NPR' | 'USD'): number => {
-    const rate = EXCHANGE_RATES[from];
+    const rate = exchangeRates[from];
     return amount / rate;
   };
 
   // Convert EUR to target currency
   const convertFromEUR = (amountInEUR: number, to: 'EUR' | 'NPR' | 'USD'): number => {
-    const rate = EXCHANGE_RATES[to];
+    const rate = exchangeRates[to];
     return amountInEUR * rate;
   };
 
@@ -200,7 +306,7 @@ export default function PersonalFinance({
       const valueInEUR = convertToEUR(acc.balance, acc.currency);
       return sum + valueInEUR;
     }, 0);
-  }, [accounts]);
+  }, [accounts, exchangeRates]);
 
   // Stats - Income vs Expense this month
   const personalStats = useMemo(() => {
@@ -226,7 +332,7 @@ export default function PersonalFinance({
     });
 
     return { income, expense, remittance };
-  }, [transactions]);
+  }, [transactions, exchangeRates]);
 
   // Category summary for charting
   const categorySummary = useMemo(() => {
@@ -241,7 +347,7 @@ export default function PersonalFinance({
     return Object.entries(summary)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [transactions]);
+  }, [transactions, exchangeRates]);
 
   // Filtered transactions for Transaction Ledger tab
   const filteredTransactions = useMemo(() => {
@@ -258,7 +364,8 @@ export default function PersonalFinance({
   }, [transactions, searchQuery, filterType, filterCategory, filterAccount]);
 
   // Format currency output
-  const renderCurrency = (amount: number, curr: 'EUR' | 'NPR' | 'USD' = 'EUR') => {
+  const renderCurrency = (amount: number, curr: 'EUR' | 'NPR' | 'USD' = 'EUR', ignorePrivacy = false) => {
+    if (privacyMode && !ignorePrivacy) return '••••••';
     if (curr === 'EUR') {
       return new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' }).format(amount);
     } else if (curr === 'NPR') {
@@ -274,7 +381,7 @@ export default function PersonalFinance({
     if (isNaN(amt) || amt <= 0) return 0;
     const baseInEUR = convertToEUR(amt, convFrom);
     return convertFromEUR(baseInEUR, convTo);
-  }, [convAmount, convFrom, convTo]);
+  }, [convAmount, convFrom, convTo, exchangeRates]);
 
   // Handle Receipt Mock Upload file selection
   const handleReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -315,6 +422,51 @@ export default function PersonalFinance({
     }
   };
 
+  const handleDeleteAccount = (e: React.MouseEvent, id: string, name: string) => {
+    e.stopPropagation();
+    requestConfirm(
+      'Delete Wallet Account',
+      `Are you sure you want to delete the wallet "${name}"? Transactions associated with it might be orphaned.`,
+      async () => {
+        try {
+          await deleteAccount(id);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    );
+  };
+
+  const openEditAccount = (e: React.MouseEvent, acc: PersonalAccount) => {
+    e.stopPropagation();
+    setEditingAccount(acc);
+    setAccName(acc.name);
+    setAccType(acc.type);
+    setAccCurrency(acc.currency);
+    setAccBalance(acc.balance.toString());
+    setIsEditAccountOpen(true);
+  };
+
+  const handleEditAccountSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accName.trim() || !accBalance || !editingAccount) return;
+    try {
+      await updateAccount(editingAccount.id, {
+        name: accName.trim(),
+        type: accType,
+        balance: parseFloat(accBalance),
+        currency: accCurrency
+      });
+      // Reset
+      setAccName('');
+      setAccBalance('');
+      setEditingAccount(null);
+      setIsEditAccountOpen(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleCreateTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!txTitle.trim() || !txAmount || !txAccountId) return;
@@ -336,9 +488,10 @@ export default function PersonalFinance({
         tags: tagsArray,
         notes: txNotes.trim(),
         currency: txCurrency,
-        exchangeRate: EXCHANGE_RATES[txCurrency],
+        exchangeRate: exchangeRates[txCurrency],
         receiptUrl: receiptBase64 || undefined,
-        receiptName: receiptName || undefined
+        receiptName: receiptName || undefined,
+        timestamp: txDate ? new Date(txDate) : undefined
       }, sourceAccount);
 
       // Reset
@@ -348,23 +501,92 @@ export default function PersonalFinance({
       setTxTags('');
       setReceiptBase64(null);
       setReceiptName(null);
+      setTxDate(new Date().toISOString().split('T')[0]);
       setIsAddTxOpen(false);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleDeleteTransaction = async (tx: PersonalTransaction) => {
-    const sourceAccount = accounts.find(a => a.id === tx.accountId);
-    if (!sourceAccount) return;
+  const handleTransferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferSourceId || !transferDestId || !transferAmount) return;
 
-    if (window.confirm(`Are you sure you want to delete "${tx.title}"? Your account balance will be reverted.`)) {
-      try {
-        await deleteTransaction(tx, sourceAccount);
-      } catch (err) {
-        console.error(err);
-      }
+    const sourceAccount = accounts.find(a => a.id === transferSourceId);
+    const destAccount = accounts.find(a => a.id === transferDestId);
+
+    if (!sourceAccount || !destAccount) {
+      triggerAlert('Transfer Error', 'Invalid source or destination account.');
+      return;
     }
+
+    if (sourceAccount.id === destAccount.id) {
+      triggerAlert('Transfer Error', 'Source and destination accounts must be different.');
+      return;
+    }
+
+    const amountNum = parseFloat(transferAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      triggerAlert('Transfer Error', 'Please enter a valid amount greater than zero.');
+      return;
+    }
+
+    if (sourceAccount.balance < amountNum) {
+      triggerAlert('Insufficient Funds', `You do not have enough funds in "${sourceAccount.name}" to transfer ${renderCurrency(amountNum, sourceAccount.currency, true)}. Current balance is ${renderCurrency(sourceAccount.balance, sourceAccount.currency, true)}.`);
+      return;
+    }
+
+    // Calculate conversion rate
+    const rateSource = exchangeRates[sourceAccount.currency];
+    const rateDest = exchangeRates[destAccount.currency];
+    const conversionRate = rateDest / rateSource;
+    const convertedAmount = amountNum * conversionRate;
+
+    requestConfirm(
+      'Confirm Wallet-to-Wallet Transfer',
+      `Are you sure you want to transfer ${renderCurrency(amountNum, sourceAccount.currency, true)} from "${sourceAccount.name}" to "${destAccount.name}"? This will credit ${renderCurrency(convertedAmount, destAccount.currency, true)} using the live rate (1 ${sourceAccount.currency} = ${conversionRate.toFixed(4)} ${destAccount.currency}).`,
+      async () => {
+        try {
+          await transferFunds(
+            sourceAccount,
+            destAccount,
+            amountNum,
+            convertedAmount,
+            conversionRate,
+            currentUser,
+            transferDate
+          );
+          // Reset
+          setTransferAmount('');
+          setTransferDate(new Date().toISOString().split('T')[0]);
+          setIsTransferOpen(false);
+          triggerAlert('Transfer Successful', `Transferred ${renderCurrency(amountNum, sourceAccount.currency, true)} to ${destAccount.name} successfully.`);
+        } catch (err) {
+          console.error(err);
+          triggerAlert('Transfer Failed', 'An error occurred while executing the transfer. Please try again.');
+        }
+      }
+    );
+  };
+
+  const handleDeleteTransaction = (tx: PersonalTransaction) => {
+    const sourceAccount = accounts.find(a => a.id === tx.accountId);
+
+    const message = sourceAccount 
+      ? `Are you sure you want to delete "${tx.title}"? Your account balance will be reverted.`
+      : `Are you sure you want to delete "${tx.title}"? (Note: The associated account wallet has been deleted, so only this ledger entry will be removed).`;
+
+    requestConfirm(
+      'Delete Transaction Entry',
+      message,
+      async () => {
+        try {
+          await deleteTransaction(tx, sourceAccount);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    );
   };
 
   const handleCreateSavingsGoal = async (e: React.FormEvent) => {
@@ -411,14 +633,18 @@ export default function PersonalFinance({
     }
   };
 
-  const handleDeleteSavingsGoal = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this savings goal?")) {
-      try {
-        await deleteSavingsGoal(id);
-      } catch (err) {
-        console.error(err);
+  const handleDeleteSavingsGoal = (id: string) => {
+    requestConfirm(
+      'Delete Savings Goal',
+      'Are you sure you want to delete this savings goal?',
+      async () => {
+        try {
+          await deleteSavingsGoal(id);
+        } catch (err) {
+          console.error(err);
+        }
       }
-    }
+    );
   };
 
   const handleCreateRecurringBill = async (e: React.FormEvent) => {
@@ -447,34 +673,42 @@ export default function PersonalFinance({
     }
   };
 
-  const handleDeleteRecurringBill = async (id: string) => {
-    if (window.confirm("Are you sure you want to remove this recurring payment entry?")) {
-      try {
-        await deleteRecurringBill(id);
-      } catch (err) {
-        console.error(err);
+  const handleDeleteRecurringBill = (id: string) => {
+    requestConfirm(
+      'Delete Recurring Bill',
+      'Are you sure you want to remove this recurring payment entry?',
+      async () => {
+        try {
+          await deleteRecurringBill(id);
+        } catch (err) {
+          console.error(err);
+        }
       }
-    }
+    );
   };
 
-  const handlePayBill = async (bill: RecurringBill, sourceAccountId: string) => {
+  const handlePayBill = (bill: RecurringBill, sourceAccountId: string) => {
     const account = accounts.find(a => a.id === sourceAccountId);
     if (!account) return;
 
     const todayStr = new Date().toISOString().split('T')[0];
-    if (window.confirm(`Deduct ${renderCurrency(bill.amount, bill.currency)} from ${account.name} and mark "${bill.name}" as paid for this month?`)) {
-      try {
-        await payRecurringBill(bill, account, todayStr);
-      } catch (err) {
-        console.error(err);
+    requestConfirm(
+      'Pay Recurring Bill',
+      `Deduct ${renderCurrency(bill.amount, bill.currency, true)} from ${account.name} and mark "${bill.name}" as paid for this month?`,
+      async () => {
+        try {
+          await payRecurringBill(bill, account, todayStr);
+        } catch (err) {
+          console.error(err);
+        }
       }
-    }
+    );
   };
 
   // CSV Report Export Generator
   const handleExportCSV = () => {
     if (transactions.length === 0) {
-      alert("No transactions logged to export!");
+      triggerAlert("No Data to Export", "No transactions logged to export!");
       return;
     }
 
@@ -552,11 +786,18 @@ export default function PersonalFinance({
             {profiles[currentUser]?.avatar || '👤'}
           </div>
           <div>
-            <div className="flex items-center justify-center md:justify-start gap-1.5">
+            <div className="flex items-center justify-center md:justify-start gap-1.5 flex-wrap">
               <h2 className="text-xl font-black text-slate-900 font-display uppercase tracking-tight">{nicknames[currentUser] || currentUser}'s Private Vault</h2>
               <span className="px-2 py-0.5 bg-slate-900 text-emerald-400 text-[8px] font-mono font-black uppercase rounded border border-emerald-500 shadow-[1px_1px_0px_0px_rgba(16,185,129,1)]">
                 Secure 100% Private
               </span>
+              <button 
+                onClick={() => setPrivacyMode(!privacyMode)}
+                className="ml-2 p-1.5 bg-white border border-slate-900 rounded-lg hover:bg-slate-100 transition shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center text-slate-700 cursor-pointer"
+                title={privacyMode ? "Show Balances" : "Hide Balances"}
+              >
+                {privacyMode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
             </div>
             <p className="text-[10px] text-slate-600 font-bold">Unshared assets, remittance histories, personal expenses, and saving benchmarks</p>
           </div>
@@ -668,7 +909,7 @@ export default function PersonalFinance({
               
               <div className="border-t border-slate-100 pt-3 mt-4 flex items-center justify-between text-[10px] font-mono">
                 <span className="text-slate-500 font-bold">NPR Equivalent</span>
-                <span className="text-slate-800 font-black">{renderCurrency(totalNetWorthEUR * EXCHANGE_RATES.NPR, 'NPR')}</span>
+                <span className="text-slate-800 font-black">{renderCurrency(totalNetWorthEUR * exchangeRates.NPR, 'NPR')}</span>
               </div>
             </div>
 
@@ -715,14 +956,27 @@ export default function PersonalFinance({
                 <CreditCard className="w-4 h-4 text-emerald-600" /> Account Portfolios
               </h4>
               
-              <button
-                id="btn-add-account-open"
-                onClick={() => setIsAddAccountOpen(true)}
-                className="px-3.5 py-1.5 bg-white text-slate-900 border-2 border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-50 transition cursor-pointer flex items-center gap-1"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[3px]" />
-                <span>Create Wallet</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {accounts.length > 1 && (
+                  <button
+                    id="btn-transfer-funds-open"
+                    onClick={() => setIsTransferOpen(true)}
+                    className="px-3.5 py-1.5 bg-indigo-600 text-white border-2 border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] hover:bg-indigo-700 transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5 stroke-[3px]" />
+                    <span>Transfer Funds</span>
+                  </button>
+                )}
+                
+                <button
+                  id="btn-add-account-open"
+                  onClick={() => setIsAddAccountOpen(true)}
+                  className="px-3.5 py-1.5 bg-white text-slate-900 border-2 border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-50 transition cursor-pointer flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[3px]" />
+                  <span>Create Wallet</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -734,8 +988,12 @@ export default function PersonalFinance({
 
                 return (
                   <div 
-                    key={acc.id} 
-                    className={`border-4 border-slate-900 p-5 rounded-3xl shadow-[5px_5px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-between hover:translate-y-[-2px] transition-all relative overflow-hidden ${
+                    key={acc.id}
+                    onClick={() => {
+                      setSelectedStatementAccount(acc);
+                      setStatementSearchQuery('');
+                    }}
+                    className={`border-4 border-slate-900 p-5 rounded-3xl shadow-[5px_5px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-between hover:translate-y-[-2px] transition-all relative overflow-hidden cursor-pointer group ${
                       isCash ? 'bg-amber-50' : isBank ? 'bg-indigo-50' : isRevolut ? 'bg-rose-50' : 'bg-emerald-50'
                     }`}
                   >
@@ -744,9 +1002,9 @@ export default function PersonalFinance({
                       {acc.type.split(' ')[0]}
                     </div>
 
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4 relative z-10">
                       <div>
-                        <h5 className="text-xs font-black text-slate-900 truncate max-w-[130px]">{acc.name}</h5>
+                        <h5 className="text-xs font-black text-slate-900 truncate max-w-[130px] group-hover:underline">{acc.name}</h5>
                         <span className="text-[8px] font-mono font-black text-slate-400 uppercase tracking-wider">{acc.type}</span>
                       </div>
 
@@ -765,15 +1023,36 @@ export default function PersonalFinance({
                       </span>
                     </div>
 
-                    <div>
-                      <h3 className="text-2xl font-black font-mono text-slate-900">
-                        {renderCurrency(acc.balance, acc.currency)}
-                      </h3>
-                      {acc.currency !== 'EUR' && (
-                        <p className="text-[9px] text-slate-500 font-mono mt-0.5">
-                          ≈ {renderCurrency(convertToEUR(acc.balance, acc.currency), 'EUR')} EUR
-                        </p>
-                      )}
+                    <div className="flex items-end justify-between relative z-10">
+                      <div>
+                        <h3 className="text-2xl font-black font-mono text-slate-900">
+                          {renderCurrency(acc.balance, acc.currency)}
+                        </h3>
+                        {acc.currency !== 'EUR' && (
+                          <p className="text-[9px] text-slate-500 font-mono mt-0.5">
+                            ≈ {renderCurrency(convertToEUR(acc.balance, acc.currency), 'EUR')} EUR
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={(e) => openEditAccount(e, acc)}
+                          className="p-1.5 bg-white border border-slate-900 rounded-lg text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition"
+                          title="Edit Account"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteAccount(e, acc.id, acc.name)}
+                          className="p-1.5 bg-white border border-slate-900 rounded-lg text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition"
+                          title="Delete Account"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1375,6 +1654,151 @@ export default function PersonalFinance({
 
 
       {/* =============================================
+          1.5. MODAL: TRANSFER FUNDS BETWEEN WALLETS
+          ============================================= */}
+      {isTransferOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border-4 border-slate-900 rounded-[32px] max-w-lg w-full p-6 shadow-[10px_10px_0px_0px_rgba(15,23,42,1)] space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b-2 border-slate-100 pb-3">
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight font-display flex items-center gap-1.5">
+                <ArrowLeftRight className="w-5 h-5 text-indigo-600" /> Transfer Funds Between Wallets
+              </h4>
+              <button 
+                onClick={() => setIsTransferOpen(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg border border-slate-200 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleTransferSubmit} className="space-y-4 text-xs">
+              
+              {/* Date of Transfer */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-500 block uppercase font-mono">Transfer Date</label>
+                <input
+                  type="date"
+                  required
+                  value={transferDate}
+                  onChange={(e) => setTransferDate(e.target.value)}
+                  className="w-full p-2.5 border-2 border-slate-900 rounded-xl focus:outline-none font-mono"
+                />
+              </div>
+
+              {/* Source & Destination Wallets */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 block uppercase font-mono">Source Wallet</label>
+                  <select
+                    value={transferSourceId}
+                    onChange={(e) => {
+                      setTransferSourceId(e.target.value);
+                      // If same as dest, clear dest
+                      if (e.target.value === transferDestId) {
+                        const other = accounts.find(a => a.id !== e.target.value);
+                        if (other) setTransferDestId(other.id);
+                      }
+                    }}
+                    className="w-full p-2.5 border-2 border-slate-900 rounded-xl bg-white font-medium focus:outline-none"
+                  >
+                    {accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} ({renderCurrency(acc.balance, acc.currency, true)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 block uppercase font-mono">Destination Wallet</label>
+                  <select
+                    value={transferDestId}
+                    onChange={(e) => setTransferDestId(e.target.value)}
+                    className="w-full p-2.5 border-2 border-slate-900 rounded-xl bg-white font-medium focus:outline-none"
+                  >
+                    {accounts
+                      .filter(acc => acc.id !== transferSourceId)
+                      .map(acc => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.name} ({renderCurrency(acc.balance, acc.currency, true)})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Transfer Amount */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-500 block uppercase font-mono">
+                  Amount to Send ({accounts.find(a => a.id === transferSourceId)?.currency || 'EUR'})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  className="w-full p-2.5 border-2 border-slate-900 rounded-xl focus:outline-none font-mono font-bold"
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Live Conversions & Exchange Rate Display */}
+              {(() => {
+                const srcAcc = accounts.find(a => a.id === transferSourceId);
+                const dstAcc = accounts.find(a => a.id === transferDestId);
+                if (!srcAcc || !dstAcc) return null;
+
+                const isCrossCurrency = srcAcc.currency !== dstAcc.currency;
+                const srcRate = exchangeRates[srcAcc.currency];
+                const dstRate = exchangeRates[dstAcc.currency];
+                const convRate = dstRate / srcRate;
+                const amt = parseFloat(transferAmount) || 0;
+                const received = amt * convRate;
+
+                return (
+                  <div className="p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Exchange Rate</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span className="text-[8px] font-mono font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md uppercase">
+                          {isFetchingRates ? 'Fetching Rate...' : 'Live Rate'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-baseline border-b border-slate-100 pb-2">
+                      <span className="text-[10px] font-medium text-slate-600">Rate Applied:</span>
+                      <span className="text-xs font-mono font-bold text-slate-900">
+                        1 {srcAcc.currency} = {convRate.toFixed(4)} {dstAcc.currency}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-baseline pt-1">
+                      <span className="text-[10px] font-black text-slate-900 uppercase">Destination Receives:</span>
+                      <span className="text-sm font-mono font-black text-slate-900">
+                        {renderCurrency(received, dstAcc.currency, true)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white border-2 border-slate-900 rounded-xl font-black uppercase tracking-wider text-[11px] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] cursor-pointer flex items-center justify-center gap-2"
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+                <span>Confirm Transfer</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+
+      {/* =============================================
           1. MODAL: ADD PERSONAL TRANSACTION ENTRY
           ============================================= */}
       {isAddTxOpen && (
@@ -1498,7 +1922,7 @@ export default function PersonalFinance({
                     >
                       {accounts.map(acc => (
                         <option key={acc.id} value={acc.id}>
-                          {acc.name} (Bal: {renderCurrency(acc.balance, acc.currency)})
+                          {acc.name} (Bal: {renderCurrency(acc.balance, acc.currency, true)})
                         </option>
                       ))}
                     </select>
@@ -1519,8 +1943,19 @@ export default function PersonalFinance({
                 </div>
               </div>
 
-              {/* Notes and tags */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Date, Tags and Notes */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 block uppercase font-mono">Transaction Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={txDate}
+                    onChange={(e) => setTxDate(e.target.value)}
+                    className="w-full p-2.5 border-2 border-slate-900 rounded-xl focus:outline-none font-mono"
+                  />
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-500 block uppercase font-mono">Custom tags (comma separated)</label>
                   <input
@@ -1700,7 +2135,315 @@ export default function PersonalFinance({
 
 
       {/* =============================================
-          3. MODAL: ADD SAVINGS GOAL TARGET
+          3. MODAL: EDIT CUSTOM ACCOUNT WALLET
+          ============================================= */}
+      {isEditAccountOpen && editingAccount && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white border-4 border-slate-900 rounded-[32px] max-w-sm w-full p-6 shadow-[10px_10px_0px_0px_rgba(15,23,42,1)] space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight font-display">Edit Account Wallet</h4>
+              <button 
+                onClick={() => {
+                  setIsEditAccountOpen(false);
+                  setEditingAccount(null);
+                }}
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition border border-slate-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditAccountSubmit} className="space-y-4 text-xs">
+              
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-500 block uppercase font-mono">Account / Wallet Name</label>
+                <input
+                  type="text"
+                  required
+                  value={accName}
+                  onChange={(e) => setAccName(e.target.value)}
+                  className="w-full p-2.5 border-2 border-slate-900 rounded-xl focus:outline-none"
+                  placeholder="e.g., AIB Card, Revolut, eSewa Wallet"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 block uppercase font-mono">Type</label>
+                  <select
+                    value={accType}
+                    onChange={(e) => setAccType(e.target.value as any)}
+                    className="w-full p-2.5 border-2 border-slate-900 rounded-xl bg-white focus:outline-none"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Bank Account">Bank Account</option>
+                    <option value="Revolut">Revolut</option>
+                    <option value="Digital Wallet">Digital Wallet</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-500 block uppercase font-mono">Base Currency</label>
+                  <select
+                    value={accCurrency}
+                    onChange={(e) => setAccCurrency(e.target.value as any)}
+                    className="w-full p-2.5 border-2 border-slate-900 rounded-xl bg-white focus:outline-none"
+                  >
+                    <option value="EUR">EUR (€)</option>
+                    <option value="NPR">NPR (रू)</option>
+                    <option value="USD">USD ($)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-500 block uppercase font-mono">Current balance</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={accBalance}
+                  onChange={(e) => setAccBalance(e.target.value)}
+                  className="w-full p-2.5 border-2 border-slate-900 rounded-xl focus:outline-none font-mono"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditAccountOpen(false);
+                    setEditingAccount(null);
+                  }}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-slate-900 rounded-xl font-black uppercase tracking-wider cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white border-2 border-slate-900 rounded-xl font-black uppercase tracking-wider shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] cursor-pointer"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =============================================
+          2.6. MODAL: INDIVIDUAL BANK STATEMENT
+          ============================================= */}
+      {selectedStatementAccount && (() => {
+        const activeAcc = accounts.find(a => a.id === selectedStatementAccount.id) || selectedStatementAccount;
+        const accountTxs = transactions.filter(t => t.accountId === activeAcc.id);
+        const searchedTxs = accountTxs.filter(t => 
+          t.title.toLowerCase().includes(statementSearchQuery.toLowerCase()) || 
+          t.category.toLowerCase().includes(statementSearchQuery.toLowerCase()) ||
+          (t.notes && t.notes.toLowerCase().includes(statementSearchQuery.toLowerCase()))
+        );
+
+        const totalMoneyIn = accountTxs
+          .filter(t => t.type === 'income')
+          .reduce((sum, t) => sum + t.amount, 0);
+
+        const totalMoneyOut = accountTxs
+          .filter(t => t.type === 'expense' || t.type === 'remittance')
+          .reduce((sum, t) => sum + t.amount, 0);
+
+        const isCash = activeAcc.type === 'Cash';
+        const isBank = activeAcc.type === 'Bank Account';
+        const isRevolut = activeAcc.type === 'Revolut';
+
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+            <div className="bg-white border-4 border-slate-900 rounded-[32px] max-w-2xl w-full p-6 shadow-[10px_10px_0px_0px_rgba(15,23,42,1)] space-y-5">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b-2 border-slate-100 pb-3">
+                <div>
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight font-display flex items-center gap-2">
+                    <span className={`p-1.5 rounded-lg border border-slate-900/20 ${
+                      isCash ? 'bg-amber-100 text-amber-700' : isBank ? 'bg-indigo-100 text-indigo-700' : isRevolut ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {isCash ? <Coins className="w-4 h-4" /> : isBank ? <CreditCard className="w-4 h-4" /> : isRevolut ? <Wallet className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                    </span>
+                    <span>{activeAcc.name} Statement</span>
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-mono font-bold mt-1 uppercase tracking-wide">
+                    {activeAcc.type} • Base Currency: {activeAcc.currency}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setSelectedStatementAccount(null)}
+                  className="p-1.5 hover:bg-slate-100 rounded-lg transition border-2 border-slate-900 cursor-pointer shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+                >
+                  <X className="w-4 h-4 stroke-[2.5]" />
+                </button>
+              </div>
+
+              {/* Quick Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 bg-slate-50 border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
+                  <span className="text-[9px] font-black uppercase text-slate-500 block font-mono">Current Balance</span>
+                  <span className="text-base sm:text-lg font-black text-slate-900 font-mono">
+                    {renderCurrency(activeAcc.balance, activeAcc.currency)}
+                  </span>
+                  {activeAcc.currency !== 'EUR' && (
+                    <span className="text-[9px] font-mono text-slate-400 block mt-0.5">
+                      ≈ {renderCurrency(convertToEUR(activeAcc.balance, activeAcc.currency), 'EUR')} EUR
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-3.5 bg-emerald-50 border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
+                  <span className="text-[9px] font-black uppercase text-emerald-700 block font-mono flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3 stroke-[3]" /> Money In
+                  </span>
+                  <span className="text-base sm:text-lg font-black text-emerald-800 font-mono">
+                    + {renderCurrency(totalMoneyIn, activeAcc.currency)}
+                  </span>
+                  <span className="text-[9px] font-mono text-emerald-600/70 block mt-0.5">
+                    Total Income Added
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-rose-50 border-2 border-slate-900 rounded-2xl shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
+                  <span className="text-[9px] font-black uppercase text-rose-700 block font-mono flex items-center gap-1">
+                    <TrendingDown className="w-3 h-3 stroke-[3]" /> Money Out
+                  </span>
+                  <span className="text-base sm:text-lg font-black text-rose-800 font-mono">
+                    - {renderCurrency(totalMoneyOut, activeAcc.currency)}
+                  </span>
+                  <span className="text-[9px] font-mono text-rose-600/70 block mt-0.5">
+                    Total Spent/Transferred
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Toolbar */}
+              <div className="bg-indigo-50/50 p-3 rounded-2xl border-2 border-slate-900 flex flex-wrap gap-2.5 items-center justify-between">
+                <span className="text-[9px] sm:text-[10px] font-black text-indigo-900 uppercase tracking-wide font-mono">
+                  Wallet Controls:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      openEditAccount(e, activeAcc);
+                      setSelectedStatementAccount(null);
+                    }}
+                    className="px-2.5 py-1.5 bg-white hover:bg-indigo-50 text-slate-800 border-2 border-slate-900 rounded-xl text-[10px] font-extrabold flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Edit Wallet</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      handleDeleteAccount(e, activeAcc.id, activeAcc.name);
+                      setSelectedStatementAccount(null);
+                    }}
+                    className="px-2.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white border-2 border-slate-900 rounded-xl text-[10px] font-extrabold flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Wallet</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSection('transactions');
+                      setFilterAccount(activeAcc.id);
+                      setSelectedStatementAccount(null);
+                    }}
+                    className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white border-2 border-slate-900 rounded-xl text-[10px] font-extrabold flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] cursor-pointer"
+                  >
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>Show in Ledger</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Transactions list */}
+              <div className="space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h5 className="text-[10px] font-black uppercase text-slate-800 tracking-wider font-mono">
+                    Ledger Statement Entries ({searchedTxs.length})
+                  </h5>
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                    <input
+                      type="text"
+                      placeholder="Search statement..."
+                      value={statementSearchQuery}
+                      onChange={(e) => setStatementSearchQuery(e.target.value)}
+                      className="w-full bg-slate-50 border-2 border-slate-900 rounded-lg pl-8 pr-2.5 py-1 text-[11px] font-bold outline-none font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-4 border-slate-900 rounded-2xl overflow-hidden bg-white">
+                  <div className="max-h-56 overflow-y-auto divide-y-2 divide-slate-100">
+                    {searchedTxs.length === 0 ? (
+                      <p className="text-center text-[11px] text-slate-400 py-8 font-medium">
+                        No transactions registered under this account wallet.
+                      </p>
+                    ) : (
+                      searchedTxs.map((tx) => {
+                        const isIncome = tx.type === 'income';
+                        const dateObj = new Date(tx.timestamp);
+                        const formattedDate = dateObj.toLocaleDateString('default', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        });
+
+                        return (
+                          <div key={tx.id} className="p-3 flex items-center justify-between gap-4 hover:bg-slate-50 transition duration-150">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${isIncome ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                <span className="text-xs font-black text-slate-900 truncate block">{tx.title}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-medium">
+                                <span className="font-semibold bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{tx.category}</span>
+                                <span>•</span>
+                                <span className="font-mono">{formattedDate}</span>
+                              </div>
+                              {tx.notes && (
+                                <p className="text-[10px] text-slate-500 mt-1 italic pl-4 border-l-2 border-slate-200">{tx.notes}</p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <span className={`text-xs font-black font-mono ${isIncome ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {isIncome ? '+' : '-'} {renderCurrency(tx.amount, tx.currency)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTransaction(tx)}
+                                className="p-1 hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded transition cursor-pointer border border-transparent hover:border-rose-200"
+                                title="Delete entry"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* =============================================
+          4. MODAL: ADD SAVINGS GOAL TARGET
           ============================================= */}
       {isAddGoalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
@@ -1842,7 +2585,7 @@ export default function PersonalFinance({
                 >
                   {accounts.map(acc => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.name} (Bal: {renderCurrency(acc.balance, acc.currency)})
+                      {acc.name} (Bal: {renderCurrency(acc.balance, acc.currency, true)})
                     </option>
                   ))}
                 </select>
@@ -2018,6 +2761,75 @@ export default function PersonalFinance({
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* =============================================
+          CUSTOM CONFIRMATION DIALOG MODAL
+          ============================================= */}
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fade-in">
+          <div className="bg-white border-4 border-slate-900 rounded-[32px] max-w-sm w-full p-6 shadow-[10px_10px_0px_0px_rgba(15,23,42,1)] space-y-4">
+            <div className="flex items-center gap-2.5 text-rose-600 border-b border-slate-100 pb-2">
+              <AlertTriangle className="w-5 h-5 stroke-[2.5]" />
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight font-display">{confirmDialog.title}</h4>
+            </div>
+            
+            <p className="text-xs text-slate-600 font-medium leading-relaxed font-mono">
+              {confirmDialog.message}
+            </p>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border-2 border-slate-900 rounded-xl font-black uppercase tracking-wider text-[11px] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const action = confirmDialog.onConfirm;
+                  setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                  if (action) {
+                    await action();
+                  }
+                }}
+                className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white border-2 border-slate-900 rounded-xl font-black uppercase tracking-wider text-[11px] shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =============================================
+          CUSTOM ALERT DIALOG MODAL
+          ============================================= */}
+      {alertDialog.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-fade-in">
+          <div className="bg-white border-4 border-slate-900 rounded-[32px] max-w-sm w-full p-6 shadow-[10px_10px_0px_0px_rgba(15,23,42,1)] space-y-4">
+            <div className="flex items-center gap-2.5 text-indigo-600 border-b border-slate-100 pb-2">
+              <Info className="w-5 h-5 stroke-[2.5]" />
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight font-display">{alertDialog.title}</h4>
+            </div>
+            
+            <p className="text-xs text-slate-600 font-medium leading-relaxed font-mono">
+              {alertDialog.message}
+            </p>
+
+            <div className="flex pt-2">
+              <button
+                type="button"
+                onClick={() => setAlertDialog(prev => ({ ...prev, isOpen: false }))}
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white border-2 border-slate-900 rounded-xl font-black uppercase tracking-wider text-[11px] shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         </div>
       )}

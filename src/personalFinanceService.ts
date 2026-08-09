@@ -62,42 +62,10 @@ export function subscribeAccounts(user: Roommate, callback: (accounts: PersonalA
       });
     });
 
-    // If first time and no accounts exist, initialize default ones
-    if (snapshot.empty) {
-      try {
-        await initializeDefaultAccounts(user);
-      } catch (err) {
-        console.error("Failed to initialize default accounts: ", err);
-      }
-    } else {
-      callback(accounts);
-    }
+    callback(accounts);
   }, (error) => {
     console.error("Error subscribing to personal accounts:", error);
   });
-}
-
-// Setup initial default accounts
-async function initializeDefaultAccounts(user: Roommate) {
-  const accountsRef = collection(db, ACCOUNTS_COLLECTION);
-  const defaults = [
-    { name: 'Physical Cash', type: 'Cash', balance: 120, currency: 'EUR' },
-    { name: 'Primary Bank Account', type: 'Bank Account', balance: 1550, currency: 'EUR' },
-    { name: 'Revolut Card', type: 'Revolut', balance: 340, currency: 'EUR' },
-    { name: 'Digital Wallet (eSewa)', type: 'Digital Wallet', balance: 80, currency: 'EUR' }
-  ];
-
-  const batch = writeBatch(db);
-  defaults.forEach((acc) => {
-    const newDocRef = doc(accountsRef);
-    batch.set(newDocRef, {
-      ...acc,
-      user,
-      createdAt: new Date().toISOString()
-    });
-  });
-
-  await batch.commit();
 }
 
 // Add custom account
@@ -217,7 +185,7 @@ export function subscribeTransactions(user: Roommate, callback: (transactions: P
 
 // Add a transaction & update account balance automatically
 export async function addTransaction(
-  tx: Omit<PersonalTransaction, 'id' | 'timestamp'>, 
+  tx: Omit<PersonalTransaction, 'id' | 'timestamp'> & { timestamp?: any }, 
   account: PersonalAccount
 ) {
   // Compute new account balance
@@ -235,7 +203,7 @@ export async function addTransaction(
   const txRef = doc(collection(db, TRANSACTIONS_COLLECTION));
   batch.set(txRef, {
     ...cleanPayload(tx),
-    timestamp: new Date().toISOString()
+    timestamp: tx.timestamp ? new Date(tx.timestamp).toISOString() : new Date().toISOString()
   });
 
   // 2. Update account balance
@@ -265,30 +233,31 @@ export async function addTransaction(
 }
 
 // Delete a transaction & restore corresponding account balance
-export async function deleteTransaction(tx: PersonalTransaction, account: PersonalAccount) {
-  // Revert balance change
-  let balanceChange = tx.amount;
-  if (tx.type === 'expense' || tx.type === 'remittance') {
-    // Expense originally subtracted from balance, so we ADD it back
-    balanceChange = tx.amount;
-  } else {
-    // Income originally added to balance, so we SUBTRACT it
-    balanceChange = -tx.amount;
-  }
-
-  const newBalance = account.balance + balanceChange;
-
+export async function deleteTransaction(tx: PersonalTransaction, account?: PersonalAccount) {
   const batch = writeBatch(db);
 
   // 1. Delete transaction document
   const txRef = doc(db, TRANSACTIONS_COLLECTION, tx.id);
   batch.delete(txRef);
 
-  // 2. Update account balance
-  const accountRef = doc(db, ACCOUNTS_COLLECTION, account.id);
-  batch.update(accountRef, {
-    balance: newBalance
-  });
+  // 2. Update account balance if account is provided
+  if (account) {
+    // Revert balance change
+    let balanceChange = tx.amount;
+    if (tx.type === 'expense' || tx.type === 'remittance') {
+      // Expense originally subtracted from balance, so we ADD it back
+      balanceChange = tx.amount;
+    } else {
+      // Income originally added to balance, so we SUBTRACT it
+      balanceChange = -tx.amount;
+    }
+
+    const newBalance = account.balance + balanceChange;
+    const accountRef = doc(db, ACCOUNTS_COLLECTION, account.id);
+    batch.update(accountRef, {
+      balance: newBalance
+    });
+  }
 
   await batch.commit();
 
@@ -577,3 +546,79 @@ export async function payRecurringBill(
     ]
   }, bill.user);
 }
+
+// ---------------------------------------------
+// 5. FUNDS TRANSFER BETWEEN WALLETS
+// ---------------------------------------------
+export async function transferFunds(
+  sourceAccount: PersonalAccount,
+  destAccount: PersonalAccount,
+  amount: number,
+  convertedAmount: number,
+  exchangeRate: number,
+  user: Roommate,
+  date: string
+) {
+  const batch = writeBatch(db);
+
+  // 1. Deduct from source account
+  const sourceRef = doc(db, ACCOUNTS_COLLECTION, sourceAccount.id);
+  batch.update(sourceRef, {
+    balance: sourceAccount.balance - amount
+  });
+
+  // 2. Add to destination account
+  const destRef = doc(db, ACCOUNTS_COLLECTION, destAccount.id);
+  batch.update(destRef, {
+    balance: destAccount.balance + convertedAmount
+  });
+
+  // 3. Log Outflow Transaction
+  const outTxRef = doc(collection(db, TRANSACTIONS_COLLECTION));
+  batch.set(outTxRef, {
+    user,
+    title: `Transfer to ${destAccount.name}`,
+    amount,
+    type: 'expense',
+    category: 'Transfer Out',
+    accountId: sourceAccount.id,
+    timestamp: new Date(date).toISOString(),
+    tags: ['Transfer'],
+    notes: `Ex. Rate: 1 ${sourceAccount.currency} = ${exchangeRate.toFixed(4)} ${destAccount.currency}`,
+    currency: sourceAccount.currency,
+    exchangeRate: sourceAccount.currency === 'EUR' ? 1.0 : (1.0 / exchangeRate)
+  });
+
+  // 4. Log Inflow Transaction
+  const inTxRef = doc(collection(db, TRANSACTIONS_COLLECTION));
+  batch.set(inTxRef, {
+    user,
+    title: `Transfer from ${sourceAccount.name}`,
+    amount: convertedAmount,
+    type: 'income',
+    category: 'Transfer In',
+    accountId: destAccount.id,
+    timestamp: new Date(date).toISOString(),
+    tags: ['Transfer'],
+    notes: `Ex. Rate: 1 ${sourceAccount.currency} = ${exchangeRate.toFixed(4)} ${destAccount.currency}`,
+    currency: destAccount.currency,
+    exchangeRate: destAccount.currency === 'EUR' ? 1.0 : exchangeRate
+  });
+
+  await batch.commit();
+
+  sendDiscordNotification('financeUpdates', {
+    title: `🔄 Private Funds Transferred`,
+    description: `Funds transferred from one private wallet to another.`,
+    category: 'transactions',
+    color: 3447003, // Blue
+    fields: [
+      { name: 'Source Wallet', value: sourceAccount.name, inline: true },
+      { name: 'Destination Wallet', value: destAccount.name, inline: true },
+      { name: 'Amount Sent', value: `${sourceAccount.currency} ${amount.toFixed(2)}`, inline: true },
+      { name: 'Amount Received', value: `${destAccount.currency} ${convertedAmount.toFixed(2)}`, inline: true },
+      { name: 'Profile Owner', value: user, inline: true }
+    ]
+  }, user);
+}
+

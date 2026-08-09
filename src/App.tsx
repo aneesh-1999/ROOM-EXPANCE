@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Roommate, Expense, Profile, RecurringBill } from './types';
-import { subscribeExpenses, getProfile, updateLoginLogLogout, subscribeToSessionLog } from './dbService';
+import { Roommate, Expense, Profile, RecurringBill, Shift } from './types';
+import { subscribeExpenses, getProfile, updateLoginLogLogout, subscribeToSessionLog, subscribeShifts, updateShift } from './dbService';
 import { subscribeRecurringBills } from './personalFinanceService';
 import { sendDiscordNotification } from './discordService';
-import { processNewExpenses, registerFCMTokenForUser, initForegroundFCMListener, removeFCMTokenForUser } from './notificationService';
+import { processNewExpenses, registerFCMTokenForUser, initForegroundFCMListener, removeFCMTokenForUser, showNotification } from './notificationService';
 import UserSelector from './components/UserSelector';
 import Dashboard from './components/Dashboard';
 import CoinMeter from './components/CoinMeter';
@@ -20,6 +20,7 @@ import SecretAdminLogin from './components/SecretAdminLogin';
 import DetailedReportModal from './components/DetailedReportModal';
 import InsightsDashboard from './components/InsightsDashboard';
 import PersonalFinance from './components/PersonalFinance';
+import RosterShifts from './components/RosterShifts';
 import { Wallet, Zap, Calendar, HeartHandshake, RefreshCw, AlertCircle, Settings, BarChart3, KeyRound, Lock } from 'lucide-react';
 
 export default function App() {
@@ -31,16 +32,17 @@ export default function App() {
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([]);
+  const [allShiftsForReminders, setAllShiftsForReminders] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'insights' | 'workspace' | 'personal'>(() => {
+  const [activeTab, setActiveTab] = useState<'insights' | 'workspace' | 'personal' | 'roster'>(() => {
     // Persistent tab restoration on launch for authenticated users
     const savedRoommate = (localStorage.getItem('activeRoommate') as Roommate) || 'Ozric';
     const isUnlocked = localStorage.getItem(`unlocked_${savedRoommate}`) === 'true';
     if (isUnlocked) {
       const savedTab = localStorage.getItem('lastAuthenticatedTab');
-      if (savedTab === 'workspace' || savedTab === 'personal') {
-        return savedTab as 'insights' | 'workspace' | 'personal';
+      if (savedTab === 'workspace' || savedTab === 'personal' || savedTab === 'roster') {
+        return savedTab as 'insights' | 'workspace' | 'personal' | 'roster';
       }
       return 'workspace'; // Default to workspace (the Dashboard) when logged in
     }
@@ -255,6 +257,70 @@ export default function App() {
     return () => unsubscribe();
   }, [currentUser]);
 
+  // Real-time shifts subscription for reminder checks
+  useEffect(() => {
+    if (!unlockedUsers[currentUser]) return;
+
+    // Subscribe to both current user's shifts
+    const unsubscribeUser = subscribeShifts(currentUser, (userShifts) => {
+      const otherUser: Roommate = currentUser === 'Ozric' ? 'Pawan' : 'Ozric';
+      const unsubscribeOther = subscribeShifts(otherUser, (otherShifts) => {
+        setAllShiftsForReminders([...userShifts, ...otherShifts]);
+      });
+      return () => unsubscribeOther();
+    });
+
+    return () => unsubscribeUser();
+  }, [currentUser, unlockedUsers[currentUser]]);
+
+  // Alarm Check loop every 30 seconds for 1-2 hours pre-shift alarms
+  useEffect(() => {
+    if (allShiftsForReminders.length === 0) return;
+
+    const runCheck = async () => {
+      const now = new Date();
+      
+      for (const shift of allShiftsForReminders) {
+        if (!shift.reminderActive || shift.notified || !shift.id) continue;
+
+        // Verify shift belongs to the currently active logged-in user before sending local push reminder
+        if (shift.user !== currentUser) continue;
+
+        const [year, month, day] = shift.date.split('-').map(Number);
+        const [hours, minutes] = shift.startTime.split(':').map(Number);
+        const shiftStart = new Date(year, month - 1, day, hours, minutes, 0, 0);
+
+        const timeDiffMs = shiftStart.getTime() - now.getTime();
+        const timeDiffHours = timeDiffMs / (1000 * 60 * 60);
+
+        // If we are within the hours window (e.g. 1 or 2 hours) and the shift has not started yet
+        if (timeDiffHours > 0 && timeDiffHours <= shift.reminderHoursBefore) {
+          const hoursLabel = shift.reminderHoursBefore === 1 ? '1 hour' : `${shift.reminderHoursBefore} hours`;
+          const title = `⏰ Upcoming Work Shift: ${shift.title}`;
+          const body = `Hi! Your rostered shift starts in ${hoursLabel} at ${shift.startTime}. Make sure your handovers are clean!`;
+          
+          showNotification(title, {
+            body,
+            tag: `shift-${shift.id}`,
+            renotify: true
+          } as any);
+
+          // Mark as notified in database so we never notify twice
+          try {
+            await updateShift(shift.id, { notified: true });
+          } catch (e) {
+            console.error('Error updating shift notify state:', e);
+          }
+        }
+      }
+    };
+
+    // Run immediately and then every 30 seconds
+    runCheck();
+    const interval = setInterval(runCheck, 30000);
+    return () => clearInterval(interval);
+  }, [allShiftsForReminders, currentUser]);
+
   // Trigger browser push notifications for incoming roommate expenses
   useEffect(() => {
     if (expenses.length > 0) {
@@ -264,7 +330,7 @@ export default function App() {
 
   // Keep last authenticated tab in sync for persistence across app reloads
   useEffect(() => {
-    if (unlockedUsers[currentUser] && (activeTab === 'workspace' || activeTab === 'personal')) {
+    if (unlockedUsers[currentUser] && (activeTab === 'workspace' || activeTab === 'personal' || activeTab === 'roster')) {
       localStorage.setItem('lastAuthenticatedTab', activeTab);
     }
   }, [activeTab, currentUser, unlockedUsers]);
@@ -377,6 +443,17 @@ export default function App() {
               </button>
             )}
 
+            {unlockedUsers[currentUser] && activeTab !== 'roster' && (
+              <button
+                id="btn-nav-roster"
+                onClick={() => setActiveTab('roster')}
+                className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-pink-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+                title="Work Roster & Shifts"
+              >
+                <Calendar className="w-4 h-4 stroke-[2.5px]" />
+              </button>
+            )}
+
             {activeTab === 'personal' && (
               <button
                 id="btn-nav-personal"
@@ -441,6 +518,12 @@ export default function App() {
             onBackToWorkspace={() => {
               setActiveTab('workspace');
             }}
+            nicknames={nicknames}
+            profiles={profiles}
+          />
+        ) : activeTab === 'roster' ? (
+          <RosterShifts 
+            currentUser={currentUser}
             nicknames={nicknames}
             profiles={profiles}
           />

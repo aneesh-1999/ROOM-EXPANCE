@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
-import { Roommate, Category, SplitType } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { Roommate, Category, SplitType, PersonalAccount } from '../types';
 import { addExpense } from '../dbService';
+import { subscribeAccounts, addTransaction } from '../personalFinanceService';
 import { 
   X, 
   Camera, 
@@ -196,6 +197,58 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<any | null>(null);
   const [selectedSplit, setSelectedSplit] = useState<'50_50' | 'custom' | 'only_me'>('50_50');
+
+  // Personal Vault Auto-Deduct State
+  const [personalAccounts, setPersonalAccounts] = useState<PersonalAccount[]>([]);
+  const [autoDeduct, setAutoDeduct] = useState(false);
+  const [selectedPersonalAccountId, setSelectedPersonalAccountId] = useState('');
+  const [exchangeRates, setExchangeRates] = useState({
+    EUR: 1.0,
+    NPR: 175.72,
+    USD: 1.09
+  });
+
+  // Subscribe to personal accounts of current roommate
+  useEffect(() => {
+    const unsubscribe = subscribeAccounts(currentUser, (accounts) => {
+      setPersonalAccounts(accounts);
+      if (accounts.length > 0) {
+        setSelectedPersonalAccountId(prev => {
+          if (accounts.some(a => a.id === prev)) return prev;
+          return accounts[0].id;
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Fetch live exchange rates for conversion
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveRates = async () => {
+      try {
+        const response = await fetch('https://open.er-api.com/v6/latest/EUR');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.rates && isMounted) {
+            const fetchedNPR = data.rates.NPR || 175.72;
+            const fetchedUSD = data.rates.USD || 1.09;
+            setExchangeRates({
+              EUR: 1.0,
+              NPR: parseFloat(fetchedNPR.toFixed(4)),
+              USD: parseFloat(fetchedUSD.toFixed(4))
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch live rates in ReceiptScanner', err);
+      }
+    };
+    fetchLiveRates();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   
   // Custom shares
   const [customOzric, setCustomOzric] = useState<number>(0);
@@ -500,6 +553,30 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
         createdBy: currentUser,
         status: 'pending' // Enforces standard roommates rules - needs approval of other roommate
       });
+
+      // Auto-deduct from personal vault
+      const myPaidAmount = currentUser === 'Ozric' ? pOzric : pPawan;
+      if (autoDeduct && myPaidAmount > 0 && selectedPersonalAccountId) {
+        const selectedAcc = personalAccounts.find(a => a.id === selectedPersonalAccountId);
+        if (selectedAcc) {
+          const targetCurrency = selectedAcc.currency;
+          const rate = exchangeRates[targetCurrency] || 1.0;
+          const convertedAmount = myPaidAmount * rate;
+
+          await addTransaction({
+            user: currentUser,
+            title: `Scanned Receipt: ${store}`,
+            amount: parseFloat(convertedAmount.toFixed(2)),
+            type: 'expense',
+            category: 'Roommate Expense',
+            accountId: selectedAcc.id,
+            tags: ['Roommate', 'ReceiptScan', category],
+            notes: `Auto-deducted from scanned receipt logging. (Original: €${myPaidAmount.toFixed(2)})`,
+            currency: targetCurrency,
+            exchangeRate: targetCurrency === 'EUR' ? 1.0 : rate
+          }, selectedAcc);
+        }
+      }
 
       onSuccess();
     } catch (err: any) {
@@ -1017,6 +1094,90 @@ export default function ReceiptScanner({ currentUser, onClose, onSuccess, nickna
             </div>
           )}
         </div>
+
+        {/* AUTO-DEDUCT FROM PERSONAL VAULT */}
+        {(() => {
+          if (!scanResult) return null;
+          const pOzric = parseFloat(payOzricAmount) || 0;
+          const pPawan = parseFloat(payPawanAmount) || 0;
+          const myPaidAmount = currentUser === 'Ozric' ? pOzric : pPawan;
+
+          if (myPaidAmount <= 0) return null;
+
+          return (
+            <div className="mx-5 mb-5 bg-indigo-50/50 border-2 border-slate-900 p-4 rounded-2xl space-y-3 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="checkbox-scanner-auto-deduct"
+                    type="checkbox"
+                    checked={autoDeduct}
+                    onChange={(e) => setAutoDeduct(e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 border-2 border-slate-900 rounded focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <label htmlFor="checkbox-scanner-auto-deduct" className="text-xs font-black text-slate-950 cursor-pointer select-none">
+                    Deduct from Personal Vault
+                  </label>
+                </div>
+                <span className="text-[10px] font-mono font-black bg-white border-2 border-slate-900 px-2.5 py-0.5 rounded-lg">
+                  €{myPaidAmount.toFixed(2)} Paid
+                </span>
+              </div>
+
+              {autoDeduct && (
+                <div className="space-y-2 animate-fade-in pl-6 border-l-2 border-slate-300">
+                  {personalAccounts.length === 0 ? (
+                    <p className="text-[10px] text-rose-600 font-bold">
+                      ⚠️ No private wallets found. Please create a wallet first in the Personal Finance tab!
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label htmlFor="select-scanner-personal-account" className="text-[9px] font-black text-slate-500 uppercase tracking-wider block font-mono">
+                        Select Private Wallet to Deduct
+                      </label>
+                      <select
+                        id="select-scanner-personal-account"
+                        value={selectedPersonalAccountId}
+                        onChange={(e) => setSelectedPersonalAccountId(e.target.value)}
+                        className="w-full p-2 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold focus:outline-none"
+                      >
+                        {personalAccounts.map(acc => {
+                          let displayBal = `${acc.currency} ${acc.balance.toFixed(2)}`;
+                          if (acc.currency === 'EUR') displayBal = `€${acc.balance.toFixed(2)}`;
+                          else if (acc.currency === 'NPR') displayBal = `रू ${Math.round(acc.balance)}`;
+                          else displayBal = `$${acc.balance.toFixed(2)}`;
+
+                          return (
+                            <option key={acc.id} value={acc.id}>
+                              {acc.name} (Bal: {displayBal})
+                            </option>
+                          );
+                        })}
+                      </select>
+
+                      {(() => {
+                        const acc = personalAccounts.find(a => a.id === selectedPersonalAccountId);
+                        if (!acc) return null;
+                        const rate = exchangeRates[acc.currency] || 1.0;
+                        const converted = myPaidAmount * rate;
+                        let displayConv = `${acc.currency} ${converted.toFixed(2)}`;
+                        if (acc.currency === 'EUR') displayConv = `€${converted.toFixed(2)}`;
+                        else if (acc.currency === 'NPR') displayConv = `रू ${Math.round(converted)}`;
+                        else displayConv = `$${converted.toFixed(2)}`;
+
+                        return (
+                          <p className="text-[9px] font-mono text-slate-500 font-bold">
+                            Will deduct <span className="text-slate-900 font-black">{displayConv}</span> using exchange rate (1 EUR = {rate.toFixed(4)} {acc.currency}).
+                          </p>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* BOTTOM CONFIRMATION BUTTONS */}
         {scanResult && !isScanning && (

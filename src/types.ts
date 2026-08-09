@@ -157,3 +157,21 @@ export interface RecurringBill {
   notes?: string;
 }
 
+export interface Shift {
+  id?: string;
+  user: Roommate;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:MM
+  endTime: string; // HH:MM
+  title: string;
+  reminderHoursBefore: number; // e.g. 1 or 2
+  reminderActive: boolean;
+  notified?: boolean;
+  notes?: string;
+  createdAt?: any;
+  employerName?: string;
+  hourlyRate?: number;
+  unpaidBreakMinutes?: number;
+  completed?: boolean;
+}
+

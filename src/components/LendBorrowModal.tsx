@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Roommate, Expense } from '../types';
+import { Roommate, Expense, PersonalAccount } from '../types';
 import { logLendBorrow } from '../dbService';
+import { subscribeAccounts, addTransaction } from '../personalFinanceService';
 import { X, ArrowRight, Coins, DollarSign, CreditCard, Sparkles, AlertCircle } from 'lucide-react';
 
 interface LendBorrowModalProps {
@@ -23,6 +24,58 @@ export default function LendBorrowModal({ currentUser, onClose, onSuccess, nickn
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Personal Vault Sync State
+  const [personalAccounts, setPersonalAccounts] = useState<PersonalAccount[]>([]);
+  const [syncPersonal, setSyncPersonal] = useState(false);
+  const [selectedPersonalAccountId, setSelectedPersonalAccountId] = useState('');
+  const [exchangeRates, setExchangeRates] = useState({
+    EUR: 1.0,
+    NPR: 175.72,
+    USD: 1.09
+  });
+
+  // Subscribe to personal accounts of current roommate
+  useEffect(() => {
+    const unsubscribe = subscribeAccounts(currentUser, (accounts) => {
+      setPersonalAccounts(accounts);
+      if (accounts.length > 0) {
+        setSelectedPersonalAccountId(prev => {
+          if (accounts.some(a => a.id === prev)) return prev;
+          return accounts[0].id;
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Fetch live exchange rates for conversion
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveRates = async () => {
+      try {
+        const response = await fetch('https://open.er-api.com/v6/latest/EUR');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.rates && isMounted) {
+            const fetchedNPR = data.rates.NPR || 175.72;
+            const fetchedUSD = data.rates.USD || 1.09;
+            setExchangeRates({
+              EUR: 1.0,
+              NPR: parseFloat(fetchedNPR.toFixed(4)),
+              USD: parseFloat(fetchedUSD.toFixed(4))
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch live rates in LendBorrowModal', err);
+      }
+    };
+    fetchLiveRates();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
@@ -39,6 +92,30 @@ export default function LendBorrowModal({ currentUser, onClose, onSuccess, nickn
     setIsSubmitting(true);
     try {
       await logLendBorrow(lender, borrower, amt, paymentMethod, notes, currentUser);
+
+      // Auto-sync with personal finance wallet
+      if (syncPersonal && selectedPersonalAccountId) {
+        const selectedAcc = personalAccounts.find(a => a.id === selectedPersonalAccountId);
+        if (selectedAcc) {
+          const targetCurrency = selectedAcc.currency;
+          const rate = exchangeRates[targetCurrency] || 1.0;
+          const convertedAmount = amt * rate;
+
+          await addTransaction({
+            user: currentUser,
+            title: action === 'lend' ? `Lent money to ${otherUserLabel}` : `Borrowed money from ${otherUserLabel}`,
+            amount: parseFloat(convertedAmount.toFixed(2)),
+            type: action === 'lend' ? 'expense' : 'income',
+            category: action === 'lend' ? 'Loan / Lend' : 'Loan / Borrow',
+            accountId: selectedAcc.id,
+            tags: ['Roommate', 'LoanTransfer'],
+            notes: `Auto-synced from Lend & Borrow modal. (Original: €${amt.toFixed(2)})`,
+            currency: targetCurrency,
+            exchangeRate: targetCurrency === 'EUR' ? 1.0 : rate
+          }, selectedAcc);
+        }
+      }
+
       onSuccess();
     } catch (error: any) {
       setErrorMsg('Failed to log transfer: ' + error.message);
@@ -203,6 +280,83 @@ export default function LendBorrowModal({ currentUser, onClose, onSuccess, nickn
               onChange={(e) => setNotes(e.target.value)}
               className="w-full px-4 py-3 rounded-xl bg-slate-50 border-2 border-slate-900 focus:bg-white focus:outline-none text-xs text-slate-800 font-bold"
             />
+          </div>
+
+          {/* PERSONAL VAULT SYNC */}
+          <div className="bg-indigo-50/50 border-2 border-slate-900 p-4 rounded-2xl space-y-3 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input
+                  id="checkbox-lend-auto-deduct"
+                  type="checkbox"
+                  checked={syncPersonal}
+                  onChange={(e) => setSyncPersonal(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 border-2 border-slate-900 rounded focus:ring-indigo-500 cursor-pointer"
+                />
+                <label htmlFor="checkbox-lend-auto-deduct" className="text-xs font-black text-slate-950 cursor-pointer select-none">
+                  {action === 'lend' ? 'Deduct from Personal Vault' : 'Deposit to Personal Vault'}
+                </label>
+              </div>
+              <span className="text-[10px] font-mono font-black bg-white border-2 border-slate-900 px-2 py-0.5 rounded">
+                Auto-sync
+              </span>
+            </div>
+
+            {syncPersonal && (
+              <div className="space-y-1.5 animate-fade-in pl-5 border-l-2 border-slate-300">
+                {personalAccounts.length === 0 ? (
+                  <p className="text-[10px] text-rose-650 font-bold">
+                    ⚠️ No private wallets found. Create a wallet first in the Personal Finance tab!
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    <label htmlFor="select-lend-personal-account" className="text-[9px] font-black text-slate-500 uppercase tracking-wider block font-mono">
+                      Select Private Wallet
+                    </label>
+                    <select
+                      id="select-lend-personal-account"
+                      value={selectedPersonalAccountId}
+                      onChange={(e) => setSelectedPersonalAccountId(e.target.value)}
+                      className="w-full p-2 bg-white border-2 border-slate-900 rounded-lg text-xs font-bold focus:outline-none"
+                    >
+                      {personalAccounts.map(acc => {
+                        let displayBal = `${acc.currency} ${acc.balance.toFixed(2)}`;
+                        if (acc.currency === 'EUR') displayBal = `€${acc.balance.toFixed(2)}`;
+                        else if (acc.currency === 'NPR') displayBal = `रू ${Math.round(acc.balance)}`;
+                        else displayBal = `$${acc.balance.toFixed(2)}`;
+
+                        return (
+                          <option key={acc.id} value={acc.id}>
+                            {acc.name} (Bal: {displayBal})
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    {(() => {
+                      const acc = personalAccounts.find(a => a.id === selectedPersonalAccountId);
+                      if (!acc) return null;
+                      const val = parseFloat(amountStr) || 0;
+                      const rate = exchangeRates[acc.currency] || 1.0;
+                      const converted = val * rate;
+                      let displayConv = `${acc.currency} ${converted.toFixed(2)}`;
+                      if (acc.currency === 'EUR') displayConv = `€${converted.toFixed(2)}`;
+                      else if (acc.currency === 'NPR') displayConv = `रू ${Math.round(converted)}`;
+                      else displayConv = `$${converted.toFixed(2)}`;
+
+                      return (
+                        <p className="text-[9px] font-mono text-slate-500 font-bold">
+                          Using rate 1 EUR = {rate.toFixed(4)} {acc.currency}.
+                          {val > 0 && (
+                            <span> (Will {action === 'lend' ? 'deduct' : 'deposit'}: <strong className="text-slate-900">{displayConv}</strong>)</span>
+                          )}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* SUBMIT BUTTON */}

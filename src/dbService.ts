@@ -9,10 +9,11 @@ import {
   serverTimestamp,
   updateDoc,
   getDoc,
-  setDoc
+  setDoc,
+  where
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Expense, Roommate, Profile, Category, LoginLog } from './types';
+import { Expense, Roommate, Profile, Category, LoginLog, Shift } from './types';
 import { sendDiscordNotification } from './discordService';
 
 // Operation Types as requested by Firestore integration skill
@@ -630,6 +631,78 @@ export function subscribeToSessionLog(logId: string, callback: (log: LoginLog | 
     },
     (error) => {
       console.error("Session log subscription error:", error);
+    }
+  );
+}
+
+// Roster & Shift services
+const SHIFTS_COLLECTION = 'shifts';
+
+export async function addShift(shift: Omit<Shift, 'id'>) {
+  try {
+    const docRef = await addDoc(collection(db, SHIFTS_COLLECTION), {
+      ...shift,
+      createdAt: serverTimestamp()
+    });
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, SHIFTS_COLLECTION);
+  }
+}
+
+export async function updateShift(id: string, shift: Partial<Shift>) {
+  try {
+    const docRef = doc(db, SHIFTS_COLLECTION, id);
+    await updateDoc(docRef, shift);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `${SHIFTS_COLLECTION}/${id}`);
+  }
+}
+
+export async function deleteShift(id: string) {
+  try {
+    const docRef = doc(db, SHIFTS_COLLECTION, id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${SHIFTS_COLLECTION}/${id}`);
+  }
+}
+
+export function subscribeShifts(user: Roommate, callback: (shifts: Shift[]) => void) {
+  const q = query(
+    collection(db, SHIFTS_COLLECTION),
+    where('user', '==', user),
+    orderBy('date', 'asc')
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const shifts: Shift[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        shifts.push({
+          id: docSnap.id,
+          user: data.user,
+          date: data.date,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          title: data.title,
+          reminderHoursBefore: data.reminderHoursBefore,
+          reminderActive: data.reminderActive,
+          notified: data.notified || false,
+          notes: data.notes || '',
+          createdAt: data.createdAt,
+          employerName: data.employerName || '',
+          hourlyRate: data.hourlyRate || 0,
+          unpaidBreakMinutes: data.unpaidBreakMinutes !== undefined ? data.unpaidBreakMinutes : 30,
+          completed: data.completed || false
+        });
+      });
+      callback(shifts);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, SHIFTS_COLLECTION);
     }
   );
 }

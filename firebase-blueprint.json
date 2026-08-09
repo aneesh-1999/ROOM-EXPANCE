@@ -340,9 +340,56 @@
         "failureReason": { "type": "string" }
       },
       "required": ["userId", "fullName", "email", "userRole", "status", "timestamp", "sessionId"]
+    },
+    "Shift": {
+      "title": "Shift",
+      "description": "A work shift or roster entry for a roommate.",
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "string",
+          "enum": ["Ozric", "Pawan"]
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the shift in YYYY-MM-DD format."
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Start time of the shift (HH:MM)."
+        },
+        "endTime": {
+          "type": "string",
+          "description": "End time of the shift (HH:MM)."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title or role of the shift."
+        },
+        "reminderHoursBefore": {
+          "type": "integer",
+          "description": "Hours before shift to trigger the reminder (e.g. 1 or 2)."
+        },
+        "reminderActive": {
+          "type": "boolean"
+        },
+        "notified": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": ["user", "date", "startTime", "endTime", "title", "reminderHoursBefore", "reminderActive"]
     }
   },
   "firestore": {
+    "shifts": {
+      "schema": {
+        "$ref": "#/entities/Shift"
+      },
+      "description": "Personal work shifts and roster entries for Pawan and Ozric."
+    },
     "login_logs": {
       "schema": {
         "$ref": "#/entities/LoginLog"

@@ -1,23 +1,88 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
-    </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="12" dy="12" stdDeviation="0" flood-color="#0f172a" flood-opacity="1" />
+    <!-- Neobrutalist Drop Shadow Filter for outer border -->
+    <filter id="neoShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="14" dy="14" stdDeviation="0" flood-color="#0f172a" flood-opacity="1" />
     </filter>
-  </defs>
-  <!-- Background Neo-brutalist Outer Card with Border -->
-  <rect x="20" y="20" width="460" height="460" rx="90" fill="url(#grad)" stroke="#0f172a" stroke-width="16" filter="url(#shadow)" />
-  
-  <!-- Handshake and Heart Graphic -->
-  <g transform="translate(116, 116)" stroke="#0f172a" stroke-dasharray="none" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Heart background -->
-    <path d="M140 40 C90 -10, 20 20, 140 150 C260 20, 190 -10, 140 40 Z" fill="#f43f5e" stroke="#0f172a" stroke-width="16" />
     
-    <!-- Cash Coins Overlay -->
-    <circle cx="140" cy="110" r="32" fill="#fbbf24" stroke="#0f172a" stroke-width="12" />
-    <path d="M140 98 v24 M132 110 h16" stroke="#0f172a" stroke-width="8" stroke-linecap="round" />
+    <!-- Modern Dot Grid Background Pattern -->
+    <pattern id="dotGrid" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="2.5" fill="#cbd5e1" />
+    </pattern>
+    
+    <!-- Linear Gradient for a subtle glow inside the houses -->
+    <linearGradient id="roseGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f43f5e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e11d48;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="indigoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Neobrutalist Card Background -->
+  <!-- Shadow offset card -->
+  <rect x="34" y="34" width="450" height="450" rx="48" fill="#0f172a" />
+  <!-- Main white-slate card with bold outline -->
+  <rect x="20" y="20" width="450" height="450" rx="48" fill="#f8fafc" stroke="#0f172a" stroke-width="12" />
+  
+  <!-- Subtle premium dot grid background -->
+  <rect x="26" y="26" width="438" height="438" rx="42" fill="url(#dotGrid)" />
+
+  <!-- Accent sparkles around the houses representing wealth and success -->
+  <!-- Top Left Sparkle -->
+  <path d="M 100,85 L 103,100 L 118,103 L 103,106 L 100,121 L 97,106 L 82,103 L 97,100 Z" fill="#fbbf24" stroke="#0f172a" stroke-width="4.5" stroke-linejoin="round" />
+  <!-- Top Right Sparkle -->
+  <path d="M 412,85 L 415,100 L 430,103 L 415,106 L 412,121 L 409,106 L 394,103 L 409,100 Z" fill="#38bdf8" stroke="#0f172a" stroke-width="4.5" stroke-linejoin="round" />
+
+  <!-- ==================== ROOMMATE OVERLAPPING HOUSES ==================== -->
+  
+  <!-- Left House (Rose / Roommate 1) -->
+  <g id="leftHouse">
+    <!-- Main House Structure -->
+    <path d="M 120,230 L 200,150 L 280,230 L 280,370 L 120,370 Z" fill="url(#roseGrad)" stroke="#0f172a" stroke-width="12" stroke-linejoin="round" />
+    <!-- Window -->
+    <rect x="150" y="246" width="24" height="24" rx="4" fill="#ffffff" stroke="#0f172a" stroke-width="6" />
+    <!-- Door -->
+    <rect x="150" y="302" width="24" height="68" rx="4" fill="#ffe4e6" stroke="#0f172a" stroke-width="6" />
+  </g>
+
+  <!-- Right House (Indigo / Roommate 2) -->
+  <g id="rightHouse">
+    <!-- Main House Structure -->
+    <path d="M 232,230 L 312,150 L 392,230 L 392,370 L 232,370 Z" fill="url(#indigoGrad)" stroke="#0f172a" stroke-width="12" stroke-linejoin="round" />
+    <!-- Window -->
+    <rect x="338" y="246" width="24" height="24" rx="4" fill="#ffffff" stroke="#0f172a" stroke-width="6" />
+    <!-- Door -->
+    <rect x="338" y="302" width="24" height="68" rx="4" fill="#e0e7ff" stroke="#0f172a" stroke-width="6" />
+  </g>
+
+  <!-- ==================== COIN & CLOCK HYBRID (THE FINANCE & SHIFTS ENGINE) ==================== -->
+  <g id="coinClockEngine">
+    <!-- Dark Offset Shadow for Coin Sticker effect -->
+    <circle cx="262" cy="296" r="66" fill="#0f172a" />
+    
+    <!-- Main Gold Coin Circle -->
+    <circle cx="256" cy="290" r="66" fill="url(#goldGrad)" stroke="#0f172a" stroke-width="12" />
+    
+    <!-- Outer dashed financial dial accent inside the coin -->
+    <circle cx="256" cy="290" r="50" fill="none" stroke="#b45309" stroke-width="4.5" stroke-dasharray="8,6" />
+    
+    <!-- Stylized Euro Currency Symbol inside the coin -->
+    <text x="256" y="306" font-family="system-ui, -apple-system, sans-serif" font-size="46" font-weight="900" fill="#0f172a" text-anchor="middle">€</text>
+    
+    <!-- Clock Hands Overlay pointing to 10:10 (representing structured work hours) -->
+    <!-- Hour Hand (pointing up-left) -->
+    <line x1="256" y1="290" x2="228" y2="262" stroke="#0f172a" stroke-width="9.5" stroke-linecap="round" />
+    <!-- Minute Hand (pointing up-right) -->
+    <line x1="256" y1="290" x2="290" y2="256" stroke="#0f172a" stroke-width="7" stroke-linecap="round" />
+    
+    <!-- Center Pin -->
+    <circle cx="256" cy="290" r="10" fill="#0f172a" />
   </g>
 </svg>

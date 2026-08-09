@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Expense, Roommate, Profile } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Expense, Roommate, Profile, PersonalAccount } from '../types';
 import { logCoinInsertion, confirmExpense } from '../dbService';
+import { subscribeAccounts, addTransaction } from '../personalFinanceService';
 import { Zap, HelpCircle, AlertCircle, Sparkles, Check, Coins, Plus, Clock, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 
 interface CoinMeterProps {
@@ -20,6 +21,82 @@ export default function CoinMeter({ expenses, currentUser, onLogSuccess, nicknam
   const [showConfetti, setShowConfetti] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null); // ID of confirming coin
+
+  // Personal Vault Auto-Deduct State
+  const [personalAccounts, setPersonalAccounts] = useState<PersonalAccount[]>([]);
+  const [autoDeduct, setAutoDeduct] = useState(false);
+  const [selectedPersonalAccountId, setSelectedPersonalAccountId] = useState('');
+  const [exchangeRates, setExchangeRates] = useState({
+    EUR: 1.0,
+    NPR: 175.72,
+    USD: 1.09
+  });
+
+  // Subscribe to personal accounts of current roommate
+  useEffect(() => {
+    const unsubscribe = subscribeAccounts(currentUser, (accounts) => {
+      setPersonalAccounts(accounts);
+      if (accounts.length > 0) {
+        setSelectedPersonalAccountId(prev => {
+          if (accounts.some(a => a.id === prev)) return prev;
+          return accounts[0].id;
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Fetch live exchange rates for conversion
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveRates = async () => {
+      try {
+        const response = await fetch('https://open.er-api.com/v6/latest/EUR');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.rates && isMounted) {
+            const fetchedNPR = data.rates.NPR || 175.72;
+            const fetchedUSD = data.rates.USD || 1.09;
+            setExchangeRates({
+              EUR: 1.0,
+              NPR: parseFloat(fetchedNPR.toFixed(4)),
+              USD: parseFloat(fetchedUSD.toFixed(4))
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch live rates in CoinMeter', err);
+      }
+    };
+    fetchLiveRates();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const deductFromWallet = async (amount: number) => {
+    if (autoDeduct && selectedPersonalAccountId) {
+      const selectedAcc = personalAccounts.find(a => a.id === selectedPersonalAccountId);
+      if (selectedAcc) {
+        const targetCurrency = selectedAcc.currency;
+        const rate = exchangeRates[targetCurrency] || 1.0;
+        const convertedAmount = amount * rate;
+
+        await addTransaction({
+          user: currentUser,
+          title: `Coin Meter: Contributed €${amount.toFixed(2)}`,
+          amount: parseFloat(convertedAmount.toFixed(2)),
+          type: 'expense',
+          category: 'Electricity / Utilities',
+          accountId: selectedAcc.id,
+          tags: ['Roommate', 'CoinMeter', 'Electricity'],
+          notes: `Auto-deducted from Coin Meter contribution. (Original: €${amount.toFixed(2)})`,
+          currency: targetCurrency,
+          exchangeRate: targetCurrency === 'EUR' ? 1.0 : rate
+        }, selectedAcc);
+      }
+    }
+  };
 
   const currentUserProfile = profiles?.[currentUser];
   const preferredCoinCategory = currentUserProfile?.quickCoinCategory || 'Electricity (Coins)';
@@ -92,6 +169,7 @@ export default function CoinMeter({ expenses, currentUser, onLogSuccess, nicknam
     setSuccessMsg('');
     try {
       await logCoinInsertion(currentUser, value, currentUser, preferredCoinCategory);
+      await deductFromWallet(value);
       setShowConfetti(true);
       setSuccessMsg(`Successfully logged €${value.toFixed(2)} coin contribution!`);
       setTimeout(() => {
@@ -120,6 +198,7 @@ export default function CoinMeter({ expenses, currentUser, onLogSuccess, nicknam
     setCustomLoading(true);
     try {
       await logCoinInsertion(currentUser, parsed, currentUser, preferredCoinCategory);
+      await deductFromWallet(parsed);
       setCustomAmount('');
       setShowConfetti(true);
       setSuccessMsg(`Successfully logged custom €${parsed.toFixed(2)} coin contribution!`);
@@ -323,6 +402,83 @@ export default function CoinMeter({ expenses, currentUser, onLogSuccess, nicknam
             </button>
           </div>
         </form>
+
+        {/* Personal Vault Sync Toggle inside Coin Meter */}
+        <div className="bg-white/80 border-2 border-slate-900 p-3.5 rounded-xl space-y-2.5 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <input
+                id="checkbox-coin-auto-deduct"
+                type="checkbox"
+                checked={autoDeduct}
+                onChange={(e) => setAutoDeduct(e.target.checked)}
+                className="w-4 h-4 text-indigo-600 border-2 border-slate-900 rounded focus:ring-indigo-500 cursor-pointer"
+              />
+              <label htmlFor="checkbox-coin-auto-deduct" className="text-xs font-black text-slate-950 cursor-pointer select-none">
+                Deduct from Personal Vault
+              </label>
+            </div>
+            <span className="text-[9px] font-mono font-black bg-indigo-100 border border-indigo-200 px-1.5 py-0.5 rounded text-indigo-800 uppercase tracking-tight">
+              Auto-sync
+            </span>
+          </div>
+
+          {autoDeduct && (
+            <div className="space-y-1.5 animate-fade-in pl-5 border-l-2 border-indigo-300">
+              {personalAccounts.length === 0 ? (
+                <p className="text-[10px] text-rose-600 font-bold">
+                  ⚠️ No private wallets found. Create a wallet first in the Personal Finance tab!
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  <label htmlFor="select-coin-personal-account" className="text-[9px] font-black text-slate-500 uppercase tracking-wider block font-mono">
+                    Select Private Wallet to Deduct
+                  </label>
+                  <select
+                    id="select-coin-personal-account"
+                    value={selectedPersonalAccountId}
+                    onChange={(e) => setSelectedPersonalAccountId(e.target.value)}
+                    className="w-full p-2 bg-white border-2 border-slate-900 rounded-lg text-xs font-bold focus:outline-none"
+                  >
+                    {personalAccounts.map(acc => {
+                      let displayBal = `${acc.currency} ${acc.balance.toFixed(2)}`;
+                      if (acc.currency === 'EUR') displayBal = `€${acc.balance.toFixed(2)}`;
+                      else if (acc.currency === 'NPR') displayBal = `रू ${Math.round(acc.balance)}`;
+                      else displayBal = `$${acc.balance.toFixed(2)}`;
+
+                      return (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.name} (Bal: {displayBal})
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  {(() => {
+                    const acc = personalAccounts.find(a => a.id === selectedPersonalAccountId);
+                    if (!acc) return null;
+                    const testVal = parseFloat(customAmount) || 1.0;
+                    const rate = exchangeRates[acc.currency] || 1.0;
+                    const converted = testVal * rate;
+                    let displayConv = `${acc.currency} ${converted.toFixed(2)}`;
+                    if (acc.currency === 'EUR') displayConv = `€${converted.toFixed(2)}`;
+                    else if (acc.currency === 'NPR') displayConv = `रू ${Math.round(converted)}`;
+                    else displayConv = `$${converted.toFixed(2)}`;
+
+                    return (
+                      <p className="text-[9px] font-mono text-slate-500 font-bold">
+                        Will deduct using rate 1 EUR = {rate.toFixed(4)} {acc.currency}.
+                        {parseFloat(customAmount) > 0 && (
+                          <span> (Estimated deduction: <strong className="text-slate-900">{displayConv}</strong>)</span>
+                        )}
+                      </p>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* COLLAPSIBLE CONTRIBUTIONS LOG */}
