@@ -1,6 +1,5 @@
 import { Expense, Roommate } from './types';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { app, db } from './firebase';
+import { db } from './firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
 
 // Check if browser supports notifications
@@ -61,107 +60,6 @@ export function showNotification(title: string, options: NotificationOptions = {
       console.warn('Could not display push notification:', e);
       return null;
     }
-  }
-}
-
-// FCM Token Registration & Sync
-export async function registerFCMTokenForUser(username: Roommate) {
-  if (!isNotificationSupported()) return;
-  if (getNotificationPermission() !== 'granted') return;
-
-  try {
-    const messaging = getMessaging(app);
-    // Standard public test/dev VAPID key as fallback, allow custom VAPID key override from environment variable if provided
-    const vapidKey = (import.meta as any).env.VITE_FCM_VAPID_KEY || 'BIdy-63WvF3T_J-BqF0_gVwZpxL6Z3t8_K-rEorC806X3XWw0LhT5-S09Z3v2-N_M7_0_N8';
-    
-    // Register the service worker manually if it isn't ready
-    let registration: ServiceWorkerRegistration;
-    if ('serviceWorker' in navigator) {
-      registration = await navigator.serviceWorker.ready;
-    } else {
-      console.warn('[FCM] Service Worker not supported');
-      return;
-    }
-
-    const token = await getToken(messaging, { 
-      vapidKey,
-      serviceWorkerRegistration: registration
-    });
-
-    if (token) {
-      console.log(`[FCM] Retained valid FCM registration token for ${username}:`, token);
-      
-      const oldToken = localStorage.getItem(`fcm_token_${username}`);
-      const profileRef = doc(db, 'profiles', username);
-
-      // Read current profile to verify token array existence
-      const docSnap = await getDoc(profileRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const currentTokens: string[] = data.fcmTokens || [];
-
-        // If the token changed, remove the old token and register the new one
-        if (oldToken && oldToken !== token) {
-          console.log(`[FCM] Token changed. De-registering old token for ${username}...`);
-          await updateDoc(profileRef, {
-            fcmTokens: arrayRemove(oldToken)
-          });
-        }
-
-        // Add the new token to Firestore under roommate profile if it doesn't already exist
-        if (!currentTokens.includes(token)) {
-          console.log(`[FCM] Registering new token to Firestore profile for ${username}...`);
-          await updateDoc(profileRef, {
-            fcmTokens: arrayUnion(token)
-          });
-        }
-      }
-
-      // Save token in localStorage to keep track of state across reboots/tab closing
-      localStorage.setItem(`fcm_token_${username}`, token);
-    } else {
-      console.warn('[FCM] No registration token returned.');
-    }
-  } catch (error) {
-    console.error('[FCM] Error registering FCM token:', error);
-  }
-}
-
-// Remove token on manual sign out
-export async function removeFCMTokenForUser(username: Roommate) {
-  try {
-    const token = localStorage.getItem(`fcm_token_${username}`);
-    if (token) {
-      const profileRef = doc(db, 'profiles', username);
-      await updateDoc(profileRef, {
-        fcmTokens: arrayRemove(token)
-      });
-      localStorage.removeItem(`fcm_token_${username}`);
-      console.log(`[FCM] De-registered FCM token from Firestore profile for ${username}`);
-    }
-  } catch (error) {
-    console.error('[FCM] Error removing FCM token on logout:', error);
-  }
-}
-
-// Listen for foreground FCM messages
-export function initForegroundFCMListener() {
-  if (!isNotificationSupported()) return;
-  try {
-    const messaging = getMessaging(app);
-    onMessage(messaging, (payload) => {
-      console.log('[FCM] Foreground message received:', payload);
-      const title = payload.notification?.title || payload.data?.title || '🏠 Roommate Wallet';
-      const body = payload.notification?.body || payload.data?.body || 'New ledger update';
-      
-      showNotification(title, {
-        body,
-        tag: payload.data?.tag || (payload.notification as any)?.tag || 'fcm-foreground-notification',
-        data: payload.data
-      });
-    });
-  } catch (error) {
-    console.warn('[FCM] Foreground listener init failed:', error);
   }
 }
 

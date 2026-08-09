@@ -1,6 +1,3 @@
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
-
 const CACHE_NAME = 'roommate-expense-engine-v1';
 const ASSETS_TO_CACHE = [
   '/',
@@ -8,34 +5,6 @@ const ASSETS_TO_CACHE = [
   '/manifest.json',
   '/icon.svg'
 ];
-
-// Initialize Firebase inside Service Worker
-firebase.initializeApp({
-  apiKey: "AIzaSyBvkho7Qq_rmR5KUT-fH_g6zMtFaJxmoT0",
-  authDomain: "ai-studio-applet-webapp-de5cb.firebaseapp.com",
-  projectId: "ai-studio-applet-webapp-de5cb",
-  storageBucket: "ai-studio-applet-webapp-de5cb.firebasestorage.app",
-  messagingSenderId: "466782740690",
-  appId: "1:466782740690:web:e92852494f27b74b978d0b"
-});
-
-const messaging = firebase.messaging();
-
-// Handle background messages
-messaging.onBackgroundMessage((payload) => {
-  console.log('[Service Worker] Received background message: ', payload);
-  
-  const notificationTitle = payload.notification?.title || payload.data?.title || '🏠 Roommate Wallet';
-  const notificationOptions = {
-    body: payload.notification?.body || payload.data?.body || 'New update in your roommate wallet.',
-    icon: '/icon.svg',
-    badge: '/icon.svg',
-    tag: payload.data?.tag || payload.notification?.tag || 'fcm-bg-notification',
-    data: payload.data || {}
-  };
-
-  return self.registration.showNotification(notificationTitle, notificationOptions);
-});
 
 // Handle standard Push API push events (even when app is closed)
 self.addEventListener('push', (event) => {
