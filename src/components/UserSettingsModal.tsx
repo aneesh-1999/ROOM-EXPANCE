@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Roommate, Profile, Category } from '../types';
 import { getProfile, updateProfile } from '../dbService';
-import { X, ShieldCheck, Key, UserCheck, LogOut, Check, AlertCircle, Sparkles, RefreshCw, Smile, Palette, Landmark, PiggyBank, PhoneCall, Zap, Lock, Bell } from 'lucide-react';
+import { X, ShieldCheck, Key, UserCheck, LogOut, Check, AlertCircle, Sparkles, RefreshCw, Smile, Palette, Landmark, PiggyBank, PhoneCall, Zap, Lock, Bell, Fingerprint } from 'lucide-react';
 import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, showNotification } from '../notificationService';
+import { useAuthStore } from '../authStore';
+import { isPlatformAuthenticatorAvailable, registerPlatformCredential } from '../biometricService';
 
 interface UserSettingsModalProps {
   currentUser: Roommate;
@@ -21,6 +23,10 @@ export default function UserSettingsModal({
   onOpenDetailedReport,
   onOpenPrivateVault
 }: UserSettingsModalProps) {
+  // Biometric state from Zustand
+  const { biometricEnabled, setBiometricEnabled, setUnlocked } = useAuthStore();
+  const [biometricSettingUp, setBiometricSettingUp] = useState(false);
+
   // Profile settings
   const [profile, setProfile] = useState<Profile | null>(null);
   const [nickname, setNickname] = useState('');
@@ -167,6 +173,44 @@ export default function UserSettingsModal({
       setErrorMsg('Failed to change password: ' + err.message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Handle Biometric lock activation and registration
+  const handleBiometricToggle = async () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    
+    if (biometricEnabled) {
+      // Disable biometrics
+      localStorage.removeItem('zindagi_biometric_enabled');
+      localStorage.removeItem('zindagi_biometric_credential_id');
+      setBiometricEnabled(false);
+      setUnlocked(true); // Fail-safe: ensure unlocked when disabled
+      setSuccessMsg('Biometric lock disabled.');
+    } else {
+      // Enable biometrics
+      setBiometricSettingUp(true);
+      try {
+        const isAvailable = await isPlatformAuthenticatorAvailable();
+        if (!isAvailable) {
+          setErrorMsg('Biometric authentication not available on this device/browser.');
+          setBiometricSettingUp(false);
+          return;
+        }
+
+        const credentialId = await registerPlatformCredential(currentUser);
+        localStorage.setItem('zindagi_biometric_credential_id', credentialId);
+        localStorage.setItem('zindagi_biometric_enabled', 'true');
+        
+        setBiometricEnabled(true);
+        setSuccessMsg('Biometric authentication lock enabled successfully!');
+      } catch (err: any) {
+        console.error('Biometric setup failed:', err);
+        setErrorMsg(`Biometric setup failed: ${err.message || err}`);
+      } finally {
+        setBiometricSettingUp(false);
+      }
     }
   };
 
@@ -560,6 +604,53 @@ export default function UserSettingsModal({
                       className="w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] flex items-center justify-center gap-1 cursor-pointer font-sans"
                     >
                       🧪 Trigger Test FCM Notification
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <hr className="border-t-2 border-slate-100" />
+
+              {/* BIOMETRIC LOCK SECTION */}
+              <div className="space-y-3 bg-[#fcfcff] border-2 border-slate-900 p-4 rounded-2xl shadow-[2px_2px_0px_0px_rgba(91,79,207,1)]">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-[#5B4FCF] font-mono flex items-center gap-1.5">
+                    <Fingerprint className="w-4 h-4 text-[#5B4FCF]" />
+                    Biometric App-Lock
+                  </h4>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={biometricEnabled}
+                      onChange={handleBiometricToggle}
+                      disabled={biometricSettingUp}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5B4FCF] border-2 border-slate-900 animate-pulse-subtle"></div>
+                  </label>
+                </div>
+
+                <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
+                  Lock and unlock the entire application with Face ID, Touch ID, or fingerprint. Once enabled, standard WebAuthn verification is required on app load or when returning to this tab.
+                </p>
+
+                {biometricEnabled && (
+                  <div className="space-y-2 pt-1">
+                    <button
+                      id="btn-settings-lock-now"
+                      type="button"
+                      onClick={() => {
+                        onClose(); // close settings modal
+                        setUnlocked(false); // instantly lock the app
+                        showNotification('Zindagi Locked', {
+                          body: 'Application locked successfully via security controls.',
+                          tag: 'biometric-lock-now'
+                        });
+                      }}
+                      className="w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 bg-[#0A0A0F] hover:bg-slate-800 text-white border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] flex items-center justify-center gap-1.5 cursor-pointer font-mono"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-[#5B4FCF]" />
+                      Lock App Now
                     </button>
                   </div>
                 )}

@@ -22,8 +22,12 @@ import InsightsDashboard from './components/InsightsDashboard';
 import PersonalFinance from './components/PersonalFinance';
 import RosterShifts from './components/RosterShifts';
 import { Wallet, Zap, Calendar, HeartHandshake, RefreshCw, AlertCircle, Settings, BarChart3, KeyRound, Lock } from 'lucide-react';
+import { useAuthStore } from './authStore';
+import BiometricLockScreen from './components/BiometricLockScreen';
 
 export default function App() {
+  const { unlocked, biometricEnabled, lock } = useAuthStore();
+
   const [currentUser, setCurrentUser] = useState<Roommate>(() => {
     // Persistent profile selection
     const saved = localStorage.getItem('activeRoommate');
@@ -196,6 +200,7 @@ export default function App() {
       return updated;
     });
     setIsSettingsOpen(false);
+    lock();
   };
 
   const handleLogoDoubleClick = () => {
@@ -374,6 +379,11 @@ export default function App() {
       return () => navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
     }
   }, []);
+
+  // Render Biometric App-Lock Screen BEFORE any other content if enabled and locked
+  if (biometricEnabled && !unlocked) {
+    return <BiometricLockScreen />;
+  }
 
   // Render Secret Admin Login Screen
   if (showAdminLogin && !isAdminLoggedIn) {
