@@ -3,7 +3,7 @@ import { Roommate, Expense, Profile, RecurringBill, Shift } from './types';
 import { subscribeExpenses, getProfile, updateLoginLogLogout, subscribeToSessionLog, subscribeShifts, updateShift } from './dbService';
 import { subscribeRecurringBills } from './personalFinanceService';
 import { sendDiscordNotification } from './discordService';
-import { processNewExpenses, registerFCMTokenForUser, initForegroundFCMListener, removeFCMTokenForUser, showNotification } from './notificationService';
+import { processNewExpenses, registerFCMTokenForUser, initForegroundFCMListener, removeFCMTokenForUser, showNotification, registerWebPushSubscription } from './notificationService';
 import UserSelector from './components/UserSelector';
 import Dashboard from './components/Dashboard';
 import CoinMeter from './components/CoinMeter';
@@ -340,10 +340,11 @@ export default function App() {
     }
   }, [activeTab, currentUser, unlockedUsers]);
 
-  // Register FCM registration token and init foreground listeners on roommate unlock
+  // Register FCM registration token, Web Push subscription, and init foreground listeners on roommate unlock
   useEffect(() => {
     if (unlockedUsers[currentUser]) {
       registerFCMTokenForUser(currentUser);
+      registerWebPushSubscription(currentUser);
       initForegroundFCMListener();
     }
   }, [currentUser, unlockedUsers]);

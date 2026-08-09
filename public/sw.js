@@ -37,6 +37,35 @@ messaging.onBackgroundMessage((payload) => {
   return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
+// Handle standard Push API push events (even when app is closed)
+self.addEventListener('push', (event) => {
+  console.log('[Service Worker] Push event received.');
+  let data = {};
+  
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      console.warn('[Service Worker] Parsing push event text payload:', e);
+      data = { title: '🏠 Roommate Wallet', body: event.data.text() };
+    }
+  }
+
+  const notificationTitle = data.title || '🏠 Roommate Wallet';
+  const notificationOptions = {
+    body: data.body || 'New roommate wallet update.',
+    icon: '/icon.svg',
+    badge: '/icon.svg',
+    tag: data.tag || 'webpush-bg-notification',
+    data: data.data || {},
+    vibrate: [100, 50, 100]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(notificationTitle, notificationOptions)
+  );
+});
+
 // Install service worker and cache base assets
 self.addEventListener('install', (event) => {
   event.waitUntil(

@@ -15,6 +15,7 @@ import {
 import { db } from './firebase';
 import { Expense, Roommate, Profile, Category, LoginLog, Shift } from './types';
 import { sendDiscordNotification } from './discordService';
+import { broadcastPushToOtherRoommates } from './notificationService';
 
 // Operation Types as requested by Firestore integration skill
 export enum OperationType {
@@ -165,6 +166,26 @@ export async function addExpense(expense: Omit<Expense, 'id' | 'timestamp'>, act
         { name: 'Status', value: (expense.status || 'pending') === 'confirmed' ? '✅ Confirmed' : '⏳ Pending Confirmation', inline: true }
       ]
     }, triggerActor);
+
+    // Broadcast standard Push notification to other roommates
+    try {
+      const actorName = triggerActor || 'Roommate';
+      let pushBody = `${actorName} logged €${Number(cleanedExpense.amount || 0).toFixed(2)} for "${cleanedExpense.title || 'Untitled'}"`;
+      if (cleanedExpense.isCoin) {
+        pushBody = `${actorName} inserted an electricity coin of €${Number(cleanedExpense.amount || 0).toFixed(2)}`;
+      } else if (cleanedExpense.isSettlement) {
+        pushBody = `${actorName} settled up €${Number(cleanedExpense.amount || 0).toFixed(2)}`;
+      } else if (cleanedExpense.isLendBorrow) {
+        pushBody = `${actorName} logged a loan of €${Number(cleanedExpense.amount || 0).toFixed(2)}`;
+      }
+      broadcastPushToOtherRoommates(actorName as Roommate, {
+        title: notifTitle,
+        body: pushBody,
+        tag: docRef.id
+      });
+    } catch (pushErr) {
+      console.error('[Push API] Error broadcasting push for addExpense:', pushErr);
+    }
 
     return docRef.id;
   } catch (error) {

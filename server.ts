@@ -1,17 +1,68 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
+import webpush from 'web-push';
 
 dotenv.config();
 
 const PORT = 3000;
 const app = express();
 
+// Setup VAPID keys for Push API
+let vapidKeys: { publicKey: string; privateKey: string };
+const keysPath = path.join(process.cwd(), 'vapidKeys.json');
+
+if (fs.existsSync(keysPath)) {
+  try {
+    vapidKeys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+  } catch (e) {
+    console.error('Error parsing vapidKeys.json, generating new keys:', e);
+    vapidKeys = webpush.generateVAPIDKeys();
+    fs.writeFileSync(keysPath, JSON.stringify(vapidKeys, null, 2));
+  }
+} else {
+  vapidKeys = webpush.generateVAPIDKeys();
+  fs.writeFileSync(keysPath, JSON.stringify(vapidKeys, null, 2));
+}
+
+// Configure web-push with VAPID details (using user email from metadata)
+webpush.setVapidDetails(
+  'mailto:work.anishdallakoti@gmail.com',
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
+
 // Increase body size limit to handle uploaded receipt images
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ limit: '20mb', extended: true }));
+
+// Get VAPID Public Key for client-side registration
+app.get('/api/vapid-public-key', (req, res) => {
+  res.json({ publicKey: vapidKeys.publicKey });
+});
+
+// Endpoint to dispatch a Web Push notification to a subscription
+app.post('/api/send-push', async (req, res) => {
+  try {
+    const { subscription, payload } = req.body;
+    if (!subscription || !payload) {
+      return res.status(400).json({ error: 'Missing subscription or payload.' });
+    }
+
+    await webpush.sendNotification(subscription, JSON.stringify(payload));
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error sending web push notification:', error);
+    // 410 (Gone) or 404 (Not Found) means the subscription is no longer active
+    if (error.statusCode === 410 || error.statusCode === 404) {
+      return res.status(410).json({ error: 'Subscription has expired or is invalid.' });
+    }
+    return res.status(500).json({ error: 'Failed to deliver push notification: ' + (error.message || error) });
+  }
+});
 
 // Initialize GoogleGenAI SDK (lazy-load or direct config)
 const getAiClient = () => {

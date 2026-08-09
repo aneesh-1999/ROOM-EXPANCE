@@ -244,3 +244,150 @@ export function triggerRentNotification() {
     tag: 'rent-due-tomorrow'
   });
 }
+
+// Helper to convert base64 url-safe VAPID key to Uint8Array
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Subscribe user to standard Web Push API notifications
+export async function registerWebPushSubscription(username: Roommate) {
+  if (!isNotificationSupported()) return;
+  
+  // Request permission if not already granted
+  let permission = getNotificationPermission();
+  if (permission === 'default') {
+    permission = await requestNotificationPermission();
+  }
+  if (permission !== 'granted') {
+    console.warn('[Push API] Permission not granted:', permission);
+    return;
+  }
+
+  try {
+    // 1. Get Service Worker registration
+    if (!('serviceWorker' in navigator)) {
+      console.warn('[Push API] Service Worker not supported');
+      return;
+    }
+    const registration = await navigator.serviceWorker.ready;
+
+    // 2. Fetch VAPID Public Key from the backend
+    const response = await fetch('/api/vapid-public-key');
+    if (!response.ok) {
+      throw new Error('Failed to fetch VAPID public key from backend server.');
+    }
+    const { publicKey } = await response.json();
+
+    // 3. Subscribe the user via PushManager
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey)
+    });
+
+    console.log(`[Push API] Active subscription obtained for ${username}:`, subscription);
+
+    // 4. Save subscription to Firestore in profiles/{username}
+    const subJson = subscription.toJSON();
+    if (!subJson.endpoint) {
+      throw new Error('Push subscription missing endpoint.');
+    }
+
+    const profileRef = doc(db, 'profiles', username);
+    const docSnap = await getDoc(profileRef);
+
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      const currentSubs: any[] = data.pushSubscriptions || [];
+
+      // Check if this endpoint is already registered
+      const exists = currentSubs.some((sub: any) => sub.endpoint === subJson.endpoint);
+
+      if (!exists) {
+        console.log(`[Push API] Registering new push subscription to Firestore for ${username}...`);
+        await updateDoc(profileRef, {
+          pushSubscriptions: arrayUnion(subJson)
+        });
+      } else {
+        console.log(`[Push API] Subscription endpoint already registered in Firestore for ${username}`);
+      }
+    }
+  } catch (error) {
+    console.error('[Push API] Error registering push subscription:', error);
+  }
+}
+
+// Send Web Push notification to a specific user using VAPID
+export async function sendPushNotificationToUser(
+  username: Roommate,
+  payload: { title: string; body: string; tag?: string; data?: any }
+) {
+  try {
+    const profileRef = doc(db, 'profiles', username);
+    const docSnap = await getDoc(profileRef);
+    if (!docSnap.exists()) return;
+
+    const data = docSnap.data();
+    const subscriptions: any[] = data.pushSubscriptions || [];
+    if (subscriptions.length === 0) {
+      console.log(`[Push API] No push subscriptions found for ${username}`);
+      return;
+    }
+
+    console.log(`[Push API] Dispatching push notifications to ${subscriptions.length} devices of ${username}...`);
+
+    for (const sub of subscriptions) {
+      try {
+        const response = await fetch('/api/send-push', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            subscription: sub,
+            payload
+          })
+        });
+
+        // If subscription is invalid/expired (HTTP 410), clean it up from Firestore
+        if (response.status === 410) {
+          console.log(`[Push API] Removing expired subscription for ${username}`);
+          await updateDoc(profileRef, {
+            pushSubscriptions: arrayRemove(sub)
+          });
+        } else if (!response.ok) {
+          const errText = await response.text();
+          console.warn(`[Push API] Failed to send push to subscription ${sub.endpoint}: ${errText}`);
+        }
+      } catch (subErr) {
+        console.error(`[Push API] Error posting push notification for ${username}:`, subErr);
+      }
+    }
+  } catch (err) {
+    console.error(`[Push API] Error fetching profile for push send to ${username}:`, err);
+  }
+}
+
+// Send Web Push notification to all OTHER roommates
+export async function broadcastPushToOtherRoommates(
+  currentUser: Roommate,
+  payload: { title: string; body: string; tag?: string; data?: any }
+) {
+  const roommates: Roommate[] = ['Ozric', 'Pawan'];
+  const targets = roommates.filter(name => name !== currentUser);
+
+  for (const target of targets) {
+    await sendPushNotificationToUser(target, payload);
+  }
+}
