@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Roommate, Profile, Category } from '../types';
 import { getProfile, updateProfile } from '../dbService';
 import { X, ShieldCheck, Key, UserCheck, LogOut, Check, AlertCircle, Sparkles, RefreshCw, Smile, Palette, Landmark, PiggyBank, PhoneCall, Zap, Lock, Bell, Fingerprint } from 'lucide-react';
-import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, showNotification } from '../notificationService';
+import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, showNotification, registerWebPushSubscription } from '../notificationService';
 import { useAuthStore } from '../authStore';
 import { isPlatformAuthenticatorAvailable, registerPlatformCredential } from '../biometricService';
 
@@ -573,8 +573,9 @@ export default function UserSettingsModal({
                       const permission = await requestNotificationPermission();
                       setNotifPermission(permission);
                       if (permission === 'granted') {
+                        await registerWebPushSubscription(currentUser);
                         showNotification('🏠 Roommate Wallet', {
-                          body: 'FCM Push Notifications activated successfully!',
+                          body: 'Push Notifications activated and synced successfully!',
                           tag: 'fcm-activated'
                         });
                       }
@@ -594,6 +595,24 @@ export default function UserSettingsModal({
                       <span>FCM service worker is active & listening.</span>
                     </div>
                     <button
+                      id="btn-settings-sync-push"
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await registerWebPushSubscription(currentUser);
+                          showNotification('🏠 Roommate Wallet', {
+                            body: 'Push subscription successfully re-registered & synced!',
+                            tag: 'webpush-synced'
+                          });
+                        } catch (err) {
+                          console.error('[Push API] Error re-registering push:', err);
+                        }
+                      }}
+                      className="w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-2 border-indigo-900 shadow-[1.5px_1.5px_0px_0px_rgba(79,70,229,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] flex items-center justify-center gap-1 cursor-pointer font-sans"
+                    >
+                      🔄 Sync & Register This Device
+                    </button>
+                    <button
                       id="btn-settings-test-fcm"
                       type="button"
                       onClick={() => {
@@ -603,10 +622,29 @@ export default function UserSettingsModal({
                           tag: 'test-expense'
                         });
                       }}
-                      className="w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] flex items-center justify-center gap-1 cursor-pointer font-sans"
+                      className="w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] flex items-center justify-center gap-1 cursor-pointer font-sans text-center"
                     >
                       🧪 Trigger Test FCM Notification
                     </button>
+
+                    {/* PWA Background Notification Troubleshooting Guide */}
+                    <div className="p-3 bg-amber-50 border-2 border-amber-400 rounded-xl space-y-2 mt-3 text-slate-800">
+                      <div className="flex items-center gap-1.5 font-bold text-[9px] text-amber-800 uppercase font-mono">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>Background PWA Push Guide</span>
+                      </div>
+                      <div className="text-[8px] font-medium leading-normal space-y-1.5 font-sans">
+                        <p>
+                          <strong className="text-amber-950 font-black">📱 iOS (16.4+):</strong> Apple strictly blocks web notifications unless this app is installed. Tap <strong className="font-bold">Share</strong>, choose <strong className="font-bold">"Add to Home Screen"</strong>, then open the installed PWA and click Sync.
+                        </p>
+                        <p>
+                          <strong className="text-amber-950 font-black">🤖 Android:</strong> Ensure Chrome notifications are enabled in your device settings. Disable battery optimization / battery-savers for this PWA so the system doesn't suspend the service worker when closed.
+                        </p>
+                        <p>
+                          <strong className="text-amber-950 font-black">💻 Desktop:</strong> Ensure your OS has granted banner permissions to your browser, and that your browser is configured to run background tasks.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

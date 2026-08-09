@@ -40,7 +40,13 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[Service Worker] Precaching app shell...');
-      return cache.addAll(ASSETS_TO_CACHE);
+      // Safe individual caching so that a single missing resource doesn't abort service worker installation
+      const cachePromises = ASSETS_TO_CACHE.map((url) => {
+        return cache.add(url).catch((err) => {
+          console.warn(`[Service Worker] Failed to cache asset during install: ${url}`, err);
+        });
+      });
+      return Promise.all(cachePromises);
     }).then(() => self.skipWaiting())
   );
 });
@@ -59,6 +65,11 @@ self.addEventListener('activate', (event) => {
       );
     }).then(() => self.clients.claim())
   );
+});
+
+// Handle browser push subscription rotation
+self.addEventListener('pushsubscriptionchange', (event) => {
+  console.log('[Service Worker] Push subscription expired or changed. Sync will happen next time client is active.');
 });
 
 // Fetch network first, fallback to offline cache for assets

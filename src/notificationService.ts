@@ -1,6 +1,6 @@
 import { Expense, Roommate } from './types';
 import { db } from './firebase';
-import { doc, updateDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, arrayUnion, arrayRemove, getDoc, serverTimestamp } from 'firebase/firestore';
 
 // Check if browser supports notifications
 export function isNotificationSupported(): boolean {
@@ -188,7 +188,18 @@ export async function registerWebPushSubscription(username: Roommate) {
     }
     const { publicKey } = await response.json();
 
-    // 3. Subscribe the user via PushManager
+    // 3. Clean up existing subscription first to prevent duplicate/stale browser endpoints
+    const existingSub = await registration.pushManager.getSubscription();
+    if (existingSub) {
+      console.log('[Push API] Existing subscription found. Renewing to guarantee clean background push state...');
+      try {
+        await existingSub.unsubscribe();
+      } catch (unsubErr) {
+        console.warn('[Push API] Error unsubscribing existing push registration:', unsubErr);
+      }
+    }
+
+    // 4. Subscribe the user via PushManager
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(publicKey)
@@ -196,7 +207,7 @@ export async function registerWebPushSubscription(username: Roommate) {
 
     console.log(`[Push API] Active subscription obtained for ${username}:`, subscription);
 
-    // 4. Save subscription to Firestore in profiles/{username}
+    // 5. Save subscription to Firestore in profiles/{username}
     const subJson = subscription.toJSON();
     if (!subJson.endpoint) {
       throw new Error('Push subscription missing endpoint.');
@@ -220,6 +231,23 @@ export async function registerWebPushSubscription(username: Roommate) {
       } else {
         console.log(`[Push API] Subscription endpoint already registered in Firestore for ${username}`);
       }
+    } else {
+      console.log(`[Push API] Profile document missing. Initializing new profile with push subscription for ${username}...`);
+      await setDoc(profileRef, {
+        pushSubscriptions: [subJson],
+        nickname: username,
+        avatar: username === 'Ozric' ? '🐼' : '🦊',
+        accentColor: username === 'Ozric' ? 'indigo' : 'rose',
+        preferredPaymentMethod: 'Revolut',
+        quickCoinCategory: 'Electricity (Coins)',
+        failedAttemptsCount: 0,
+        lockoutType: 'none',
+        lockedUntil: null,
+        permanentLock: false,
+        manualLocked: false,
+        recoveryRequest: null,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
     }
   } catch (error) {
     console.error('[Push API] Error registering push subscription:', error);
