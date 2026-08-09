@@ -47,7 +47,7 @@ export async function registerPlatformCredential(username: string): Promise<stri
   const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
     challenge: challenge,
     rp: {
-      name: 'Zindagi Roommate Wallet',
+      name: 'Roommate Expense Wallet',
       id: window.location.hostname
     },
     user: {

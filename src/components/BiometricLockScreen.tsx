@@ -27,7 +27,7 @@ export default function BiometricLockScreen() {
     setAuthenticating(true);
 
     try {
-      const credentialId = localStorage.getItem('zindagi_biometric_credential_id');
+      const credentialId = localStorage.getItem('roommate_biometric_credential_id') || localStorage.getItem('zindagi_biometric_credential_id');
       if (!credentialId) {
         throw new Error('Biometric lock is enabled but no credential ID was found on this device.');
       }
@@ -58,7 +58,7 @@ export default function BiometricLockScreen() {
       if (credential) {
         // Biometric success: unlock the app completely
         setUnlocked(true);
-        showNotification('Zindagi Unlocked', {
+        showNotification('Roommate Expense Unlocked', {
           body: 'Welcome back! Secure session unlocked successfully via biometrics.',
           tag: 'biometric-success'
         });
@@ -105,6 +105,8 @@ export default function BiometricLockScreen() {
 
   // Emergency reset of biometrics if credential validation fails permanently
   const handleResetBiometrics = () => {
+    localStorage.removeItem('roommate_biometric_enabled');
+    localStorage.removeItem('roommate_biometric_credential_id');
     localStorage.removeItem('zindagi_biometric_enabled');
     localStorage.removeItem('zindagi_biometric_credential_id');
     
@@ -145,7 +147,7 @@ export default function BiometricLockScreen() {
 
         {/* Brand Information */}
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-black tracking-tight font-display uppercase">Unlock Zindagi</h2>
+          <h2 className="text-2xl font-black tracking-tight font-display uppercase">Unlock Roommate Wallet</h2>
           <p className="text-xs text-slate-400 font-semibold max-w-[280px] mx-auto leading-relaxed">
             Verify your biometrics to authorize your secure roommate wallet and ledger dashboard.
           </p>

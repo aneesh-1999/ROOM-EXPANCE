@@ -9,14 +9,14 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => {
-  const isBiometricEnabled = localStorage.getItem('zindagi_biometric_enabled') === 'true';
+  const isBiometricEnabled = (localStorage.getItem('roommate_biometric_enabled') || localStorage.getItem('zindagi_biometric_enabled')) === 'true';
   return {
     unlocked: !isBiometricEnabled,
     biometricEnabled: isBiometricEnabled,
     setUnlocked: (unlocked) => set({ unlocked }),
     setBiometricEnabled: (enabled) => set({ biometricEnabled: enabled }),
     lock: () => {
-      const isBiometricEnabled = localStorage.getItem('zindagi_biometric_enabled') === 'true';
+      const isBiometricEnabled = (localStorage.getItem('roommate_biometric_enabled') || localStorage.getItem('zindagi_biometric_enabled')) === 'true';
       if (isBiometricEnabled) {
         set({ unlocked: false });
       }
@@ -36,7 +36,7 @@ if (typeof document !== 'undefined') {
         const elapsed = Date.now() - lastHiddenTime;
         const fiveMinutes = 5 * 60 * 1000;
         if (elapsed > fiveMinutes) {
-          const isBiometricEnabled = localStorage.getItem('zindagi_biometric_enabled') === 'true';
+          const isBiometricEnabled = (localStorage.getItem('roommate_biometric_enabled') || localStorage.getItem('zindagi_biometric_enabled')) === 'true';
           if (isBiometricEnabled) {
             useAuthStore.setState({ unlocked: false });
           }

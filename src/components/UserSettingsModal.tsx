@@ -183,6 +183,8 @@ export default function UserSettingsModal({
     
     if (biometricEnabled) {
       // Disable biometrics
+      localStorage.removeItem('roommate_biometric_enabled');
+      localStorage.removeItem('roommate_biometric_credential_id');
       localStorage.removeItem('zindagi_biometric_enabled');
       localStorage.removeItem('zindagi_biometric_credential_id');
       setBiometricEnabled(false);
@@ -200,8 +202,8 @@ export default function UserSettingsModal({
         }
 
         const credentialId = await registerPlatformCredential(currentUser);
-        localStorage.setItem('zindagi_biometric_credential_id', credentialId);
-        localStorage.setItem('zindagi_biometric_enabled', 'true');
+        localStorage.setItem('roommate_biometric_credential_id', credentialId);
+        localStorage.setItem('roommate_biometric_enabled', 'true');
         
         setBiometricEnabled(true);
         setSuccessMsg('Biometric authentication lock enabled successfully!');
