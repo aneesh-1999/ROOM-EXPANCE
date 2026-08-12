@@ -296,89 +296,90 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
       <div className="bg-white border-4 border-slate-900 rounded-3xl w-full max-w-lg shadow-[8px_8px_0px_0px_rgba(15,23,42,1)] overflow-hidden my-auto max-h-[92vh] flex flex-col">
         {/* HEADER */}
-        <div className="p-5 border-b-4 border-slate-100 flex items-center justify-between bg-indigo-50/25 sticky top-0 backdrop-blur z-10">
-          <div className="flex items-center gap-2.5">
-            <span className="p-2.5 bg-pink-100 text-pink-600 rounded-2xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
-              <Layers className="w-5 h-5" />
+        <div className="p-3.5 sm:p-4 border-b-2 border-slate-200 flex items-center justify-between bg-indigo-50/50 sticky top-0 backdrop-blur z-10">
+          <div className="flex items-center gap-2">
+            <span className="p-2 bg-pink-100 text-pink-600 rounded-xl border border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] shrink-0">
+              <Layers className="w-4 h-4" />
             </span>
             <div>
-              <h3 className="text-lg font-black tracking-tight text-slate-900">Add Shared Expense</h3>
-              <p className="text-xs text-slate-500 font-medium">Add a new receipt, bill or custom charge</p>
+              <h3 className="text-base font-black tracking-tight text-slate-900">Add Shared Expense</h3>
+              <p className="text-[10px] text-slate-500 font-bold">Split bills & log shared payments</p>
             </div>
           </div>
           <button 
             id="btn-close-expense-form"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 border-2 border-slate-200 hover:border-slate-900 transition duration-200 cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 border border-slate-300 hover:border-slate-900 transition duration-150 cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* FORM */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
+        <form onSubmit={handleSubmit} className="p-3.5 sm:p-4 overflow-y-auto space-y-4 flex-1">
           {onSwitchToScanner && (
             <button
               type="button"
               onClick={onSwitchToScanner}
-              className="w-full py-3 px-4 bg-amber-50 hover:bg-amber-100 border-2 border-dashed border-amber-500 rounded-2xl flex items-center justify-center gap-2 text-xs font-black text-amber-950 uppercase tracking-wider transition duration-200 cursor-pointer shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]"
+              className="w-full py-2 px-3 bg-amber-50 hover:bg-amber-100 border border-dashed border-amber-500 rounded-xl flex items-center justify-center gap-2 text-xs font-black text-amber-950 uppercase tracking-wider transition duration-150 cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
             >
               <span className="text-sm">📸</span>
-              <span>Switch to AI Receipt Scanner (OCR)</span>
+              <span>Scan Receipt with AI</span>
             </button>
           )}
 
           {errorMsg && (
-            <div className="bg-rose-100 border-2 border-slate-900 text-slate-900 text-xs rounded-2xl p-4 flex items-start gap-2.5 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] font-bold">
+            <div className="bg-rose-100 border border-slate-900 text-slate-900 text-xs rounded-xl p-3 flex items-start gap-2 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] font-bold">
               <span className="mt-0.5">⚠️</span>
-              <p className="leading-relaxed">{errorMsg}</p>
+              <p className="leading-snug">{errorMsg}</p>
             </div>
           )}
 
-          {/* TOTAL AMOUNT INPUT */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
-              Total Amount (€)
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-900">
-                <Euro className="w-6 h-6" />
+          {/* TOTAL AMOUNT & TITLE IN 2-COL OR COMPACT STACK */}
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+            <div className="sm:col-span-5 space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-wider text-slate-500 font-mono">
+                Total Amount (€)
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-900">
+                  <Euro className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <input
+                  id="input-expense-amount"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={amountStr}
+                  onChange={(e) => setAmountStr(e.target.value)}
+                  required
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 border-2 border-slate-900 focus:bg-white focus:outline-none text-xl font-black font-mono text-slate-900 transition-all placeholder:text-slate-400 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]"
+                />
               </div>
+            </div>
+
+            <div className="sm:col-span-7 space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-wider text-slate-500 font-mono">
+                Description / Title
+              </label>
               <input
-                id="input-expense-amount"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={amountStr}
-                onChange={(e) => setAmountStr(e.target.value)}
+                id="input-expense-title"
+                type="text"
+                placeholder="Groceries, Wi-Fi, Rent..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 required
-                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-50 border-3 border-slate-900 focus:bg-white focus:outline-none text-2xl font-black font-mono tracking-tight text-slate-900 transition-all placeholder:text-slate-400 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]"
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border-2 border-slate-900 focus:bg-white focus:outline-none text-xs font-bold text-slate-900 transition-all placeholder:text-slate-400 min-h-[42px]"
               />
             </div>
           </div>
 
-          {/* DESCRIPTION TITLE */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
-              Title / Item Description
-            </label>
-            <input
-              id="input-expense-title"
-              type="text"
-              placeholder="e.g. Shared Groceries, Wi-Fi bill..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              className="w-full px-4 py-3.5 rounded-xl bg-slate-50 border-2 border-slate-900 focus:bg-white focus:outline-none text-sm font-bold text-slate-900 transition-all placeholder:text-slate-450"
-            />
-          </div>
-
           {/* CATEGORY GRID */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black uppercase tracking-wider text-slate-500 font-mono">
               Category
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
               {CATEGORIES.map((cat) => {
                 const Icon = cat.icon;
                 const isSelected = category === cat.name;
@@ -388,16 +389,16 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                     key={cat.name}
                     type="button"
                     onClick={() => handleCategorySelect(cat.name)}
-                    className={`flex items-center gap-2 px-2.5 py-3 rounded-xl border-2 transition-all duration-300 text-left cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-2 py-2 rounded-xl border transition-all duration-150 text-left cursor-pointer min-h-[40px] ${
                       isSelected
-                        ? 'bg-amber-100 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] text-slate-900 font-black'
-                        : 'bg-white border-slate-900 text-slate-500 font-bold hover:text-slate-800 hover:bg-slate-50'
+                        ? 'bg-amber-100 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] text-slate-900 font-black'
+                        : 'bg-white border-slate-300 text-slate-600 font-bold hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
-                    <span className={`p-1 rounded-lg border-2 border-slate-900 ${isSelected ? 'bg-amber-400 text-slate-900' : 'bg-slate-100 text-slate-700'}`}>
-                      <Icon className="w-3.5 h-3.5" />
+                    <span className={`p-1 rounded-lg border border-slate-900 shrink-0 ${isSelected ? 'bg-amber-400 text-slate-900' : 'bg-slate-100 text-slate-700'}`}>
+                      <Icon className="w-3 h-3 stroke-[2.5]" />
                     </span>
-                    <span className="text-[11px] font-extrabold truncate leading-none">
+                    <span className="text-[10px] font-extrabold truncate leading-tight">
                       {cat.name.replace('/Delivery', '').replace(' (Coins)', '')}
                     </span>
                   </button>
@@ -407,17 +408,17 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
           </div>
 
           {/* PAYMENT DISTRIBUTION */}
-          <div className="space-y-3 pt-1">
+          <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
-                Payment Distribution
+              <label className="text-[9px] font-black uppercase tracking-wider text-slate-500 font-mono">
+                Who Paid
               </label>
-              <span className="text-[10px] text-slate-450 font-black font-mono">
-                Who paid what at shop
+              <span className="text-[9px] text-slate-400 font-mono">
+                Enter payment contributions
               </span>
             </div>
 
-            <div className="bg-slate-50 border-2 border-slate-900 p-4 rounded-2xl space-y-4 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
+            <div className="bg-slate-50 border-2 border-slate-900 p-3 rounded-xl space-y-3 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
               {/* Quick Fill Actions */}
               <div className="grid grid-cols-3 gap-1.5">
                 <button
@@ -428,9 +429,9 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                     setPayPawanAmount('0.00');
                     setIsPaymentEdited(true);
                   }}
-                  className="px-2 py-1.5 bg-white border border-slate-900 text-[10px] font-black uppercase tracking-wider rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer text-center truncate"
+                  className="px-2 py-1 bg-white border border-slate-900 text-[9px] font-black uppercase tracking-wider rounded-lg text-slate-700 hover:bg-slate-100 cursor-pointer text-center truncate"
                 >
-                  {nicknames.Ozric} Paid All
+                  {nicknames.Ozric} All
                 </button>
                 <button
                   type="button"
@@ -440,9 +441,9 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                     setPayOzricAmount('0.00');
                     setIsPaymentEdited(true);
                   }}
-                  className="px-2 py-1.5 bg-white border border-slate-900 text-[10px] font-black uppercase tracking-wider rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer text-center truncate"
+                  className="px-2 py-1 bg-white border border-slate-900 text-[9px] font-black uppercase tracking-wider rounded-lg text-slate-700 hover:bg-slate-100 cursor-pointer text-center truncate"
                 >
-                  {nicknames.Pawan} Paid All
+                  {nicknames.Pawan} All
                 </button>
                 <button
                   type="button"
@@ -453,20 +454,20 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                     setPayPawanAmount(half);
                     setIsPaymentEdited(true);
                   }}
-                  className="px-2 py-1.5 bg-white border border-slate-900 text-[10px] font-black uppercase tracking-wider rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer text-center truncate"
+                  className="px-2 py-1 bg-white border border-slate-900 text-[9px] font-black uppercase tracking-wider rounded-lg text-slate-700 hover:bg-slate-100 cursor-pointer text-center truncate"
                 >
-                  Split 50/50
+                  50 / 50
                 </button>
               </div>
 
               {/* Input Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-0.5">
                   <label className="text-[9px] text-slate-500 font-black font-mono uppercase">
-                    {nicknames.Ozric} Paid (€)
+                    {nicknames.Ozric} (€)
                   </label>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 font-mono font-bold text-xs">€</span>
+                    <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400 font-mono font-bold text-xs">€</span>
                     <input
                       id="input-pay-dist-ozric"
                       type="number"
@@ -477,17 +478,17 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                         setPayOzricAmount(e.target.value);
                         setIsPaymentEdited(true);
                       }}
-                      className="w-full pl-7 pr-3 py-2 rounded-xl bg-white border-2 border-slate-900 text-xs font-black font-mono text-slate-900 focus:bg-indigo-50/50 outline-none"
+                      className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-white border border-slate-900 text-xs font-black font-mono text-slate-900 focus:bg-indigo-50/50 outline-none"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   <label className="text-[9px] text-slate-500 font-black font-mono uppercase">
-                    {nicknames.Pawan} Paid (€)
+                    {nicknames.Pawan} (€)
                   </label>
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 font-mono font-bold text-xs">€</span>
+                    <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400 font-mono font-bold text-xs">€</span>
                     <input
                       id="input-pay-dist-pawan"
                       type="number"
@@ -498,21 +499,21 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                         setPayPawanAmount(e.target.value);
                         setIsPaymentEdited(true);
                       }}
-                      className="w-full pl-7 pr-3 py-2 rounded-xl bg-white border-2 border-slate-900 text-xs font-black font-mono text-slate-900 focus:bg-indigo-50/50 outline-none"
+                      className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-white border border-slate-900 text-xs font-black font-mono text-slate-900 focus:bg-indigo-50/50 outline-none"
                     />
                   </div>
                 </div>
               </div>
 
               {amountStr && (
-                <div className="pt-2 border-t border-slate-200 flex justify-between text-[10px] font-mono font-bold">
-                  <span className="text-slate-500">Target Total: €{parseFloat(amountStr).toFixed(2)}</span>
+                <div className="pt-1.5 border-t border-slate-200 flex justify-between text-[9px] font-mono font-bold">
+                  <span className="text-slate-500">Target: €{parseFloat(amountStr).toFixed(2)}</span>
                   <span className={`font-black ${
                     Math.abs((parseFloat(payOzricAmount) || 0) + (parseFloat(payPawanAmount) || 0) - parseFloat(amountStr)) < 0.05
                       ? 'text-emerald-600'
                       : 'text-rose-600'
                   }`}>
-                    Sum Entered: €{((parseFloat(payOzricAmount) || 0) + (parseFloat(payPawanAmount) || 0)).toFixed(2)}
+                    Paid: €{((parseFloat(payOzricAmount) || 0) + (parseFloat(payPawanAmount) || 0)).toFixed(2)}
                   </span>
                 </div>
               )}
@@ -520,24 +521,21 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
           </div>
 
           {/* SPLIT TYPE TABS */}
-          <div className="space-y-3.5 pt-2 border-t-2 border-slate-100">
+          <div className="space-y-2 pt-1 border-t border-slate-200">
             <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
-                Split Type
+              <label className="text-[9px] font-black uppercase tracking-wider text-slate-500 font-mono">
+                Split Ratio
               </label>
-              <span className="text-[10px] text-slate-500 font-black font-mono">
-                Configure shares
-              </span>
             </div>
             
-            <div className="grid grid-cols-3 bg-slate-100 p-1.5 rounded-2xl border-2 border-slate-900">
+            <div className="grid grid-cols-3 bg-slate-100 p-1 rounded-xl border border-slate-900">
               <button
                 id="btn-split-5050"
                 type="button"
                 onClick={() => setSplitType('50/50')}
-                className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                   splitType === '50/50'
-                    ? 'bg-emerald-300 text-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] border-2 border-slate-900'
+                    ? 'bg-emerald-300 text-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] border border-slate-900'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -547,9 +545,9 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                 id="btn-split-custom"
                 type="button"
                 onClick={() => setSplitType('custom')}
-                className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                   splitType === 'custom'
-                    ? 'bg-emerald-300 text-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] border-2 border-slate-900'
+                    ? 'bg-emerald-300 text-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] border border-slate-900'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -559,9 +557,9 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                 id="btn-split-itemized"
                 type="button"
                 onClick={() => setSplitType('itemized')}
-                className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                   splitType === 'itemized'
-                    ? 'bg-emerald-300 text-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] border-2 border-slate-900'
+                    ? 'bg-emerald-300 text-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] border border-slate-900'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -571,29 +569,24 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
 
             {/* SPLIT DETAILS RENDER DYNAMICALLY */}
             {splitType === '50/50' && amountStr && !isNaN(parseFloat(amountStr)) && (
-              <div className="bg-indigo-50 border-2 border-slate-900 p-4 rounded-2xl flex justify-between gap-4 text-center shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] text-slate-900 font-black">
+              <div className="bg-indigo-50 border border-slate-900 p-2.5 rounded-xl flex justify-between gap-2 text-center shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] text-slate-900 font-black">
                 <div className="flex-1">
-                  <span className="text-[10px] text-slate-500 font-black uppercase tracking-wider">{nicknames.Ozric}'s Share</span>
-                  <p className="text-lg font-black font-mono text-slate-900 mt-1">€{(parseFloat(amountStr) / 2).toFixed(2)}</p>
+                  <span className="text-[9px] text-slate-500 font-black uppercase">{nicknames.Ozric}</span>
+                  <p className="text-base font-black font-mono text-slate-900">€{(parseFloat(amountStr) / 2).toFixed(2)}</p>
                 </div>
-                <div className="w-0.5 h-10 bg-slate-900 self-center" />
+                <div className="w-px h-8 bg-slate-900/30 self-center" />
                 <div className="flex-1">
-                  <span className="text-[10px] text-slate-500 font-black uppercase tracking-wider">{nicknames.Pawan}'s Share</span>
-                  <p className="text-lg font-black font-mono text-slate-900 mt-1">€{(parseFloat(amountStr) / 2).toFixed(2)}</p>
+                  <span className="text-[9px] text-slate-500 font-black uppercase">{nicknames.Pawan}</span>
+                  <p className="text-base font-black font-mono text-slate-900">€{(parseFloat(amountStr) / 2).toFixed(2)}</p>
                 </div>
               </div>
             )}
 
             {splitType === 'custom' && (
-              <div className="bg-slate-50 border-2 border-slate-900 p-4 rounded-2xl space-y-4 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
-                <div className="flex items-center gap-2 text-[11px] text-slate-700 font-bold">
-                  <HelpCircle className="w-4 h-4 shrink-0 text-slate-900" />
-                  <span>Specify exact Euro parts for each user. Sum must equal total.</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3.5">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 font-black font-mono uppercase">{nicknames.Ozric} Share (€)</label>
+              <div className="bg-slate-50 border border-slate-900 p-3 rounded-xl space-y-3 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="space-y-0.5">
+                    <label className="text-[9px] text-slate-500 font-black font-mono uppercase">{nicknames.Ozric} (€)</label>
                     <input
                       id="input-split-custom-ozric"
                       type="number"
@@ -601,12 +594,12 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                       placeholder="0.00"
                       value={customOzricAmount}
                       onChange={(e) => setCustomOzricAmount(e.target.value)}
-                      className="w-full pl-3 pr-3 py-2.5 rounded-xl bg-white border-2 border-slate-900 text-sm font-black font-mono text-slate-900 focus:bg-indigo-50/50 outline-none"
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-900 text-xs font-black font-mono text-slate-900 outline-none"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 font-black font-mono uppercase">{nicknames.Pawan} Share (€)</label>
+                  <div className="space-y-0.5">
+                    <label className="text-[9px] text-slate-500 font-black font-mono uppercase">{nicknames.Pawan} (€)</label>
                     <input
                       id="input-split-custom-pawan"
                       type="number"
@@ -614,20 +607,20 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                       placeholder="0.00"
                       value={customPawanAmount}
                       onChange={(e) => setCustomPawanAmount(e.target.value)}
-                      className="w-full pl-3 pr-3 py-2.5 rounded-xl bg-white border-2 border-slate-900 text-sm font-black font-mono text-slate-900 focus:bg-indigo-50/50 outline-none"
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-900 text-xs font-black font-mono text-slate-900 outline-none"
                     />
                   </div>
                 </div>
 
                 {amountStr && (
-                  <div className="pt-2.5 border-t border-slate-200 flex justify-between text-[11px] font-mono font-bold">
+                  <div className="pt-1.5 border-t border-slate-200 flex justify-between text-[9px] font-mono font-bold">
                     <span className="text-slate-500">Target: €{parseFloat(amountStr).toFixed(2)}</span>
                     <span className={`font-black ${
                       Math.abs((parseFloat(customOzricAmount) || 0) + (parseFloat(customPawanAmount) || 0) - parseFloat(amountStr)) < 0.05
                         ? 'text-emerald-600'
                         : 'text-rose-600'
                     }`}>
-                      Sum logged: €{((parseFloat(customOzricAmount) || 0) + (parseFloat(customPawanAmount) || 0)).toFixed(2)}
+                      Logged: €{((parseFloat(customOzricAmount) || 0) + (parseFloat(customPawanAmount) || 0)).toFixed(2)}
                     </span>
                   </div>
                 )}
@@ -635,22 +628,17 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
             )}
 
             {splitType === 'itemized' && (
-              <div className="bg-slate-50 border-2 border-slate-900 p-4 rounded-2xl space-y-4 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
-                <div className="flex items-start gap-2 text-[11px] text-slate-700 font-bold">
-                  <HelpCircle className="w-4 h-4 shrink-0 mt-0.5 text-slate-900" />
-                  <p>Input a personal item cost first. The remaining bill splits equally.</p>
-                </div>
-
-                <div className="space-y-3.5">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 font-black font-mono uppercase">Whose Personal Item?</label>
-                    <div className="grid grid-cols-2 gap-2 bg-slate-200 p-1.5 rounded-xl border-2 border-slate-900">
+              <div className="bg-slate-50 border border-slate-900 p-3 rounded-xl space-y-2.5 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]">
+                <div className="space-y-2">
+                  <div className="space-y-0.5">
+                    <label className="text-[9px] text-slate-500 font-black font-mono uppercase">Personal Owner</label>
+                    <div className="grid grid-cols-2 gap-1.5 bg-slate-200 p-1 rounded-lg border border-slate-900">
                       <button
                         id="btn-itemized-owner-ozric"
                         type="button"
                         onClick={() => setPersonalUser('Ozric')}
-                        className={`py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                          personalUser === 'Ozric' ? 'bg-indigo-600 text-white shadow-md border border-slate-900' : 'text-slate-500 hover:text-slate-700'
+                        className={`py-1 rounded text-xs font-black transition-all cursor-pointer ${
+                          personalUser === 'Ozric' ? 'bg-indigo-600 text-white border border-slate-900' : 'text-slate-600'
                         }`}
                       >
                         {nicknames.Ozric}
@@ -659,8 +647,8 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                         id="btn-itemized-owner-pawan"
                         type="button"
                         onClick={() => setPersonalUser('Pawan')}
-                        className={`py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                          personalUser === 'Pawan' ? 'bg-indigo-600 text-white shadow-md border border-slate-900' : 'text-slate-500 hover:text-slate-700'
+                        className={`py-1 rounded text-xs font-black transition-all cursor-pointer ${
+                          personalUser === 'Pawan' ? 'bg-indigo-600 text-white border border-slate-900' : 'text-slate-600'
                         }`}
                       >
                         {nicknames.Pawan}
@@ -668,8 +656,8 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 font-black font-mono uppercase">Personal Item Amount (€)</label>
+                  <div className="space-y-0.5">
+                    <label className="text-[9px] text-slate-500 font-black font-mono uppercase">Personal Cost (€)</label>
                     <input
                       id="input-itemized-personal-amount"
                       type="number"
@@ -677,19 +665,16 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                       placeholder="e.g. 15.00"
                       value={personalAmountStr}
                       onChange={(e) => setPersonalAmountStr(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-white border-2 border-slate-900 text-sm font-black font-mono text-slate-900 focus:bg-indigo-50/50 outline-none"
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-900 text-xs font-black font-mono text-slate-900 outline-none"
                     />
                   </div>
                 </div>
 
                 {amountStr && personalAmountStr && !isNaN(parseFloat(amountStr)) && !isNaN(parseFloat(personalAmountStr)) && (
-                  <div className="pt-3 border-t border-slate-200 text-xs space-y-2 font-bold text-slate-700">
-                    <p className="text-slate-500 font-mono text-[11px]">
-                      Shared portion: €{(parseFloat(amountStr) - parseFloat(personalAmountStr)).toFixed(2)} (€{((parseFloat(amountStr) - parseFloat(personalAmountStr)) / 2).toFixed(2)} each)
-                    </p>
-                    <div className="bg-white rounded-2xl p-3 flex justify-between font-mono font-black border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] text-slate-900">
+                  <div className="pt-2 border-t border-slate-200 text-[10px] space-y-1 font-bold text-slate-700">
+                    <div className="bg-white rounded-lg p-2 flex justify-between font-mono font-black border border-slate-900 text-slate-900">
                       <div>
-                        <span className="text-[9px] text-slate-500 block">{nicknames.Ozric} Share</span>
+                        <span className="text-[8px] text-slate-500 block">{nicknames.Ozric}</span>
                         <span>
                           €{personalUser === 'Ozric' 
                             ? (parseFloat(personalAmountStr) + (parseFloat(amountStr) - parseFloat(personalAmountStr)) / 2).toFixed(2)
@@ -697,9 +682,9 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
                           }
                         </span>
                       </div>
-                      <div className="w-0.5 h-8 bg-slate-900" />
+                      <div className="w-px h-6 bg-slate-900/30" />
                       <div>
-                        <span className="text-[9px] text-slate-500 block">{nicknames.Pawan} Share</span>
+                        <span className="text-[8px] text-slate-500 block">{nicknames.Pawan}</span>
                         <span>
                           €{personalUser === 'Pawan' 
                             ? (parseFloat(personalAmountStr) + (parseFloat(amountStr) - parseFloat(personalAmountStr)) / 2).toFixed(2)
@@ -715,17 +700,17 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
           </div>
 
           {/* OPTIONAL NOTES */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
+          <div className="space-y-1">
+            <label className="text-[9px] font-black uppercase tracking-wider text-slate-500 font-mono">
               Notes (Optional)
             </label>
-            <textarea
+            <input
               id="input-expense-notes"
-              placeholder="Store any extra context or transaction details..."
+              type="text"
+              placeholder="Extra details..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 border-2 border-slate-900 focus:bg-white focus:outline-none text-xs text-slate-800 transition-all placeholder:text-slate-400 resize-none font-bold"
+              className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-900 focus:bg-white focus:outline-none text-xs text-slate-800 font-bold placeholder:text-slate-400"
             />
           </div>
 
@@ -738,41 +723,38 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
             if (myPaidAmount <= 0) return null;
 
             return (
-              <div className="bg-indigo-50/50 border-2 border-slate-900 p-4 rounded-2xl space-y-3 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
+              <div className="bg-indigo-50/50 border border-slate-900 p-2.5 rounded-xl space-y-2 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <input
                       id="checkbox-auto-deduct"
                       type="checkbox"
                       checked={autoDeduct}
                       onChange={(e) => setAutoDeduct(e.target.checked)}
-                      className="w-4 h-4 text-indigo-600 border-2 border-slate-900 rounded focus:ring-indigo-500 cursor-pointer"
+                      className="w-3.5 h-3.5 text-indigo-600 border border-slate-900 rounded cursor-pointer"
                     />
-                    <label htmlFor="checkbox-auto-deduct" className="text-xs font-black text-slate-950 cursor-pointer select-none">
-                      Deduct from Personal Vault
+                    <label htmlFor="checkbox-auto-deduct" className="text-xs font-black text-slate-900 cursor-pointer select-none">
+                      Deduct from Personal Wallet
                     </label>
                   </div>
-                  <span className="text-[10px] font-mono font-black bg-white border-2 border-slate-900 px-2.5 py-0.5 rounded-lg">
-                    €{myPaidAmount.toFixed(2)} Paid
+                  <span className="text-[9px] font-mono font-black bg-white border border-slate-900 px-2 py-0.5 rounded-md">
+                    €{myPaidAmount.toFixed(2)}
                   </span>
                 </div>
 
                 {autoDeduct && (
-                  <div className="space-y-2 animate-fade-in pl-6 border-l-2 border-slate-300">
+                  <div className="space-y-1.5 pl-5 border-l-2 border-indigo-200">
                     {personalAccounts.length === 0 ? (
-                      <p className="text-[10px] text-rose-600 font-bold">
-                        ⚠️ No private wallets found. Please create a wallet first in the Personal Finance tab!
+                      <p className="text-[9px] text-rose-600 font-bold">
+                        No private wallets found in Personal Finance.
                       </p>
                     ) : (
-                      <div className="space-y-1.5">
-                        <label htmlFor="select-personal-account" className="text-[9px] font-black text-slate-500 uppercase tracking-wider block font-mono">
-                          Select Private Wallet to Deduct
-                        </label>
+                      <div className="space-y-1">
                         <select
                           id="select-personal-account"
                           value={selectedPersonalAccountId}
                           onChange={(e) => setSelectedPersonalAccountId(e.target.value)}
-                          className="w-full p-2 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold focus:outline-none"
+                          className="w-full p-1.5 bg-white border border-slate-900 rounded-lg text-xs font-bold focus:outline-none"
                         >
                           {personalAccounts.map(acc => {
                             let displayBal = `${acc.currency} ${acc.balance.toFixed(2)}`;
@@ -782,28 +764,11 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
 
                             return (
                               <option key={acc.id} value={acc.id}>
-                                {acc.name} (Bal: {displayBal})
+                                {acc.name} ({displayBal})
                               </option>
                             );
                           })}
                         </select>
-
-                        {(() => {
-                          const acc = personalAccounts.find(a => a.id === selectedPersonalAccountId);
-                          if (!acc) return null;
-                          const rate = exchangeRates[acc.currency] || 1.0;
-                          const converted = myPaidAmount * rate;
-                          let displayConv = `${acc.currency} ${converted.toFixed(2)}`;
-                          if (acc.currency === 'EUR') displayConv = `€${converted.toFixed(2)}`;
-                          else if (acc.currency === 'NPR') displayConv = `रू ${Math.round(converted)}`;
-                          else displayConv = `$${converted.toFixed(2)}`;
-
-                          return (
-                            <p className="text-[9px] font-mono text-slate-500 font-bold">
-                              Will deduct <span className="text-slate-900 font-black">{displayConv}</span> using exchange rate (1 EUR = {rate.toFixed(4)} {acc.currency}).
-                            </p>
-                          );
-                        })()}
                       </div>
                     )}
                   </div>
@@ -817,7 +782,7 @@ export default function ExpenseForm({ currentUser, onClose, onSuccess, nicknames
             id="btn-submit-expense"
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-300 bg-indigo-600 text-white border-3 border-slate-900 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[5px_5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] disabled:opacity-50 mt-4 flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 bg-indigo-600 hover:bg-indigo-700 text-white border-2 border-slate-900 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] disabled:opacity-50 mt-2 flex items-center justify-center gap-2 cursor-pointer min-h-[44px]"
           >
             {isSubmitting ? 'Adding Expense...' : 'Add Expense'}
           </button>

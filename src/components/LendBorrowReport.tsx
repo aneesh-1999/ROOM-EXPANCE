@@ -107,59 +107,59 @@ export default function LendBorrowReport({ expenses, currentUser, nicknames }: L
       {/* CARD HEADER WITH TOGGLE */}
       <div 
         onClick={() => setIsExpanded(!isExpanded)}
-        className="p-5 bg-violet-100 border-b-4 border-slate-900 flex items-center justify-between cursor-pointer select-none hover:bg-violet-200/80 transition-colors"
+        className="p-3.5 sm:p-4 bg-violet-100 border-b-3 border-slate-900 flex items-center justify-between cursor-pointer select-none hover:bg-violet-200/80 transition-colors"
       >
-        <div className="flex items-center gap-3">
-          <span className="p-2.5 bg-violet-200 text-violet-800 rounded-2xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
-            <Coins className="w-5 h-5 stroke-[2.5px]" />
+        <div className="flex items-center gap-2.5">
+          <span className="p-2 bg-violet-200 text-violet-900 rounded-xl border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] shrink-0">
+            <Coins className="w-4 h-4 stroke-[2.5px]" />
           </span>
           <div>
-            <h3 className="text-base font-black tracking-tight text-slate-900 uppercase">Lend & Borrow Report</h3>
-            <p className="text-[10px] text-slate-600 font-bold font-mono">Detailed standings for direct cash, Revolut & bank transfers</p>
+            <h3 className="text-xs sm:text-sm font-black tracking-tight text-slate-900 uppercase">Lend & Borrow Report</h3>
+            <p className="text-[10px] text-slate-600 font-bold font-mono">Direct transfers & cash loans</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-black font-mono bg-white px-2 py-1 rounded-md border-2 border-slate-900">
-            {lendBorrowExpenses.length} Total Logs
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[10px] font-black font-mono bg-white px-2 py-0.5 rounded-lg border border-slate-900">
+            {lendBorrowExpenses.length} Logs
           </span>
-          {isExpanded ? <ChevronUp className="w-5 h-5 text-slate-900" /> : <ChevronDown className="w-5 h-5 text-slate-900" />}
+          {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-900" /> : <ChevronDown className="w-4 h-4 text-slate-900" />}
         </div>
       </div>
 
       {isExpanded && (
-        <div className="p-6 space-y-6">
+        <div className="p-3.5 sm:p-4 space-y-4">
           {/* LEND/BORROW STANDINGS SUMMARY BAR */}
-          <div className={`border-3 border-slate-900 rounded-2xl p-5 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] ${
+          <div className={`border-2 border-slate-900 rounded-2xl p-3.5 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] ${
             isEven 
               ? 'bg-amber-50' 
               : isOwed 
                 ? 'bg-emerald-50' 
                 : 'bg-rose-50'
           }`}>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-row items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
               <div>
-                <span className="text-[9px] font-black uppercase tracking-wider font-mono text-slate-500 block mb-1">
-                  Net Direct Loan Standing
+                <span className="text-[9px] font-black uppercase tracking-wider font-mono text-slate-500 block">
+                  Net Balance
                 </span>
-                <span className="text-3xl font-black font-mono text-slate-900">
+                <span className="text-2xl sm:text-3xl font-black font-mono text-slate-900">
                   €{Math.abs(netLendBorrowStanding).toFixed(2)}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs font-black text-slate-900">
                 {isEven ? (
-                  <span className="bg-amber-200 border-2 border-slate-900 px-3 py-1.5 rounded-xl shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center gap-1.5">
-                    <ArrowRightLeft className="w-4 h-4 text-slate-800" />
-                    All cash loans are settled!
+                  <span className="bg-amber-200 border border-slate-900 px-2.5 py-1 rounded-xl shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center gap-1.5 text-xs">
+                    <ArrowRightLeft className="w-3.5 h-3.5 text-slate-800 shrink-0" />
+                    <span>Settled Up!</span>
                   </span>
                 ) : isOwed ? (
-                  <span className="bg-emerald-200 border-2 border-slate-900 px-3 py-1.5 rounded-xl shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center gap-1.5">
-                    <ArrowUpRight className="w-4 h-4 text-emerald-800" />
-                    {otherUserLabel} owes you €{Math.abs(netLendBorrowStanding).toFixed(2)} directly
+                  <span className="bg-emerald-200 border border-slate-900 px-2.5 py-1 rounded-xl shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center gap-1.5 text-xs">
+                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-800 shrink-0" />
+                    <span>{otherUserLabel} owes you €{Math.abs(netLendBorrowStanding).toFixed(2)}</span>
                   </span>
                 ) : (
-                  <span className="bg-rose-200 border-2 border-slate-900 px-3 py-1.5 rounded-xl shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center gap-1.5">
-                    <ArrowDownLeft className="w-4 h-4 text-rose-800" />
-                    You owe {otherUserLabel} €{Math.abs(netLendBorrowStanding).toFixed(2)} directly
+                  <span className="bg-rose-200 border border-slate-900 px-2.5 py-1 rounded-xl shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center gap-1.5 text-xs">
+                    <ArrowDownLeft className="w-3.5 h-3.5 text-rose-800 shrink-0" />
+                    <span>You owe {otherUserLabel} €{Math.abs(netLendBorrowStanding).toFixed(2)}</span>
                   </span>
                 )}
               </div>
@@ -167,159 +167,148 @@ export default function LendBorrowReport({ expenses, currentUser, nicknames }: L
           </div>
 
           {/* TOTAL LENT VS BORROWED BOXES */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-emerald-50 border-3 border-slate-900 rounded-2xl p-4 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
-              <div className="flex items-center gap-1.5 text-emerald-700 mb-1">
-                <ArrowUpRight className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-wider font-mono">Total You Lent</span>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="bg-emerald-50 border-2 border-slate-900 rounded-xl p-2.5 sm:p-3 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
+              <div className="flex items-center gap-1 text-emerald-700 mb-0.5">
+                <ArrowUpRight className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
+                <span className="text-[9px] font-black uppercase tracking-wider font-mono truncate">Lent</span>
               </div>
-              <p className="text-xl font-black font-mono text-slate-900">€{totalLent.toFixed(2)}</p>
-              <p className="text-[9px] text-slate-500 font-bold mt-1">Given to {otherUserLabel}</p>
+              <p className="text-lg sm:text-xl font-black font-mono text-slate-900">€{totalLent.toFixed(2)}</p>
+              <p className="text-[9px] text-slate-500 font-bold truncate">To {otherUserLabel}</p>
             </div>
 
-            <div className="bg-rose-50 border-3 border-slate-900 rounded-2xl p-4 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
-              <div className="flex items-center gap-1.5 text-rose-700 mb-1">
-                <ArrowDownLeft className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-wider font-mono">Total You Borrowed</span>
+            <div className="bg-rose-50 border-2 border-slate-900 rounded-xl p-2.5 sm:p-3 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
+              <div className="flex items-center gap-1 text-rose-700 mb-0.5">
+                <ArrowDownLeft className="w-3.5 h-3.5 shrink-0 stroke-[2.5]" />
+                <span className="text-[9px] font-black uppercase tracking-wider font-mono truncate">Borrowed</span>
               </div>
-              <p className="text-xl font-black font-mono text-slate-900">€{totalBorrowed.toFixed(2)}</p>
-              <p className="text-[9px] text-slate-500 font-bold mt-1">Received from {otherUserLabel}</p>
+              <p className="text-lg sm:text-xl font-black font-mono text-slate-900">€{totalBorrowed.toFixed(2)}</p>
+              <p className="text-[9px] text-slate-500 font-bold truncate">From {otherUserLabel}</p>
             </div>
           </div>
 
           {/* METHODWISE BREAKDOWN */}
-          <div className="space-y-2">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5" />
-              Breakdown by Payment Method
+          <div className="space-y-1.5">
+            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500 font-mono flex items-center gap-1">
+              <Layers className="w-3 h-3 text-slate-400" />
+              By Payment Method
             </h4>
             
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               {/* REVOLUT */}
-              <div className="bg-slate-50 border-2 border-slate-900 rounded-xl p-3 flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-black text-slate-800">Revolut</span>
-                  <Smartphone className="w-4 h-4 text-sky-500" />
+              <div className="bg-slate-50 border border-slate-900 rounded-xl p-2 flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[9px] font-black text-slate-800">Revolut</span>
+                  <Smartphone className="w-3.5 h-3.5 text-sky-500 shrink-0" />
                 </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs font-semibold text-slate-500">Lent: <strong className="text-slate-800 font-mono">€{revolutLent.toFixed(2)}</strong></p>
-                  <p className="text-xs font-semibold text-slate-500">Borrowed: <strong className="text-slate-800 font-mono">€{revolutBorrowed.toFixed(2)}</strong></p>
+                <div className="text-[10px] font-mono leading-tight space-y-0.5">
+                  <p className="text-slate-500">L: <strong className="text-slate-900">€{revolutLent.toFixed(0)}</strong></p>
+                  <p className="text-slate-500">B: <strong className="text-slate-900">€{revolutBorrowed.toFixed(0)}</strong></p>
                 </div>
               </div>
 
               {/* CASH */}
-              <div className="bg-slate-50 border-2 border-slate-900 rounded-xl p-3 flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-black text-slate-800">Physical Cash</span>
-                  <DollarSign className="w-4 h-4 text-emerald-500" />
+              <div className="bg-slate-50 border border-slate-900 rounded-xl p-2 flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[9px] font-black text-slate-800">Cash</span>
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs font-semibold text-slate-500">Lent: <strong className="text-slate-800 font-mono">€{cashLent.toFixed(2)}</strong></p>
-                  <p className="text-xs font-semibold text-slate-500">Borrowed: <strong className="text-slate-800 font-mono">€{cashBorrowed.toFixed(2)}</strong></p>
+                <div className="text-[10px] font-mono leading-tight space-y-0.5">
+                  <p className="text-slate-500">L: <strong className="text-slate-900">€{cashLent.toFixed(0)}</strong></p>
+                  <p className="text-slate-500">B: <strong className="text-slate-900">€{cashBorrowed.toFixed(0)}</strong></p>
                 </div>
               </div>
 
               {/* BANK TRANSFER */}
-              <div className="bg-slate-50 border-2 border-slate-900 rounded-xl p-3 flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-black text-slate-800">Bank Transfer</span>
-                  <CreditCard className="w-4 h-4 text-indigo-500" />
+              <div className="bg-slate-50 border border-slate-900 rounded-xl p-2 flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[9px] font-black text-slate-800">Bank</span>
+                  <CreditCard className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                 </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs font-semibold text-slate-500">Lent: <strong className="text-slate-800 font-mono">€{bankLent.toFixed(2)}</strong></p>
-                  <p className="text-xs font-semibold text-slate-500">Borrowed: <strong className="text-slate-800 font-mono">€{bankBorrowed.toFixed(2)}</strong></p>
+                <div className="text-[10px] font-mono leading-tight space-y-0.5">
+                  <p className="text-slate-500">L: <strong className="text-slate-900">€{bankLent.toFixed(0)}</strong></p>
+                  <p className="text-slate-500">B: <strong className="text-slate-900">€{bankBorrowed.toFixed(0)}</strong></p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* SEARCH & DETAILED FEED */}
-          <div className="space-y-3 pt-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 font-mono">
-                Direct Loan Feed
+          <div className="space-y-2 pt-1">
+            <div className="flex flex-row items-center justify-between gap-2">
+              <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500 font-mono">
+                Direct Loan Logs
               </h4>
-              <div className="relative w-full sm:w-60">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <div className="relative w-36 sm:w-48">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
                 <input
                   id="input-lend-search"
                   type="text"
-                  placeholder="Search direct loans..."
+                  placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 rounded-xl border-2 border-slate-900 text-xs bg-slate-50 focus:bg-white focus:outline-none font-bold text-slate-800"
+                  className="w-full pl-7 pr-2 py-1 rounded-lg border border-slate-900 text-xs bg-slate-50 focus:bg-white focus:outline-none font-bold text-slate-800"
                 />
               </div>
             </div>
 
             {filteredLogs.length === 0 ? (
-              <div className="text-center py-8 border-2 border-dashed border-slate-350 rounded-2xl bg-slate-50/50">
-                <Coins className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-xs font-black text-slate-600">No lend/borrow entries found</p>
-                <p className="text-[10px] text-slate-400 font-medium">Use the "Lend / Borrow" button above to register transactions</p>
+              <div className="text-center py-6 border border-dashed border-slate-300 rounded-xl bg-slate-50/50">
+                <Coins className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                <p className="text-xs font-black text-slate-600">No direct loans found</p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                 {filteredLogs.map((exp) => {
                   const isLender = exp.paidBy === currentUser;
                   const formattedDate = new Date(exp.timestamp).toLocaleDateString('default', {
                     month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
+                    day: 'numeric'
                   });
 
                   return (
                     <div 
                       key={exp.id} 
-                      className={`p-3.5 border-2 border-slate-900 rounded-xl shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-between gap-2 transition-all hover:bg-slate-50 ${
-                        isLender ? 'bg-emerald-50/30' : 'bg-rose-50/30'
+                      className={`p-2.5 border border-slate-900 rounded-xl shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-between gap-1.5 transition-all ${
+                        isLender ? 'bg-emerald-50/40' : 'bg-rose-50/40'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2.5">
-                        <div className="flex items-start gap-2.5">
-                          <span className={`p-1.5 rounded-lg border-2 border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] shrink-0 ${
-                            isLender ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-200 text-rose-850'
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 min-w-0">
+                          <span className={`p-1 rounded-lg border border-slate-900 shrink-0 mt-0.5 ${
+                            isLender ? 'bg-emerald-200 text-emerald-900' : 'bg-rose-200 text-rose-900'
                           }`}>
-                            {isLender ? <ArrowUpRight className="w-4 h-4 stroke-[2.5px]" /> : <ArrowDownLeft className="w-4 h-4 stroke-[2.5px]" />}
+                            {isLender ? <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5px]" /> : <ArrowDownLeft className="w-3.5 h-3.5 stroke-[2.5px]" />}
                           </span>
-                          <div>
-                            <h5 className="text-xs font-black text-slate-900 leading-tight">
+                          <div className="min-w-0">
+                            <h5 className="text-xs font-black text-slate-900 truncate leading-tight">
                               {exp.title}
                             </h5>
                             {exp.notes && (
-                              <p className="text-[10px] text-slate-600 font-bold bg-white/70 px-2 py-0.5 rounded border border-slate-200 mt-1 inline-block">
-                                {exp.notes}
+                              <p className="text-[9px] text-slate-600 font-medium truncate mt-0.5">
+                                "{exp.notes}"
                               </p>
-                            )}
-                            {exp.status === 'pending' && (
-                              <div className="mt-1.5 text-[8px] font-extrabold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded-md inline-flex items-center gap-1">
-                                ⏳ On Hold (Pending)
-                              </div>
                             )}
                           </div>
                         </div>
 
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <span className="text-xs font-black font-mono text-slate-900 block">
                             €{exp.amount.toFixed(2)}
                           </span>
-                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-900 text-[8px] font-black uppercase tracking-wider font-mono mt-1 ${getMethodBadgeClass(exp.paymentMethod)}`}>
-                            {getMethodIcon(exp.paymentMethod)}
+                          <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded border text-[8px] font-black uppercase font-mono ${getMethodBadgeClass(exp.paymentMethod)}`}>
                             {exp.paymentMethod || 'Revolut'}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 text-[9px] text-slate-400 font-bold font-mono">
+                      <div className="flex items-center justify-between border-t border-slate-200/60 pt-1 text-[9px] text-slate-500 font-bold font-mono">
                         <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-slate-400" />
+                          <Calendar className="w-2.5 h-2.5 text-slate-400" />
                           {formattedDate}
                         </span>
-                        <span className="text-slate-500">
-                          {isLender 
-                            ? `Owed by ${otherUserLabel}` 
-                            : `Owed to ${otherUserLabel}`
-                          }
+                        <span>
+                          {isLender ? `Owed by ${otherUserLabel}` : `Owed to ${otherUserLabel}`}
                         </span>
                       </div>
                     </div>

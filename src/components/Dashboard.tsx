@@ -228,42 +228,48 @@ export default function Dashboard({
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row md:flex-col gap-3.5 justify-end w-full md:w-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-2.5 w-full md:w-auto shrink-0">
             <button
               id="btn-scan-receipt-quick"
               onClick={onOpenReceiptScanner}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-300 bg-emerald-500 text-white border-3 border-slate-900 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-2 cursor-pointer"
+              className="px-3.5 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-200 bg-emerald-500 hover:bg-emerald-600 text-white border-2 border-slate-900 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
             >
-              <Camera className="w-4 h-4" />
-              Scan Receipt (OCR)
+              <Camera className="w-4 h-4 stroke-[2.5]" />
+              <span>Scan Receipt</span>
             </button>
 
             <button
               id="btn-add-expense-quick"
               onClick={onOpenAddExpense}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-300 bg-indigo-600 text-white border-3 border-slate-900 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-2 cursor-pointer"
+              className="px-3.5 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-200 bg-indigo-600 hover:bg-indigo-700 text-white border-2 border-slate-900 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
             >
-              <Wallet className="w-4 h-4" />
-              Add Expense
+              <Wallet className="w-4 h-4 stroke-[2.5]" />
+              <span>Add Expense</span>
             </button>
 
             <button
               id="btn-lend-borrow-quick"
               onClick={onOpenLendBorrow}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-300 bg-violet-600 text-white border-3 border-slate-900 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-2 cursor-pointer"
+              className="px-3.5 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-200 bg-violet-600 hover:bg-violet-700 text-white border-2 border-slate-900 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
             >
-              <Coins className="w-4 h-4" />
-              Lend / Borrow
+              <Coins className="w-4 h-4 stroke-[2.5]" />
+              <span>Lend / Borrow</span>
             </button>
             
-            {!isEven && (
+            {!isEven ? (
               <button
                 id="btn-settle-up-quick"
                 onClick={onOpenSettleUp}
-                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all duration-300 bg-amber-400 text-slate-900 border-3 border-slate-900 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-2 cursor-pointer"
+                className="px-3.5 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all duration-200 bg-amber-400 hover:bg-amber-500 text-slate-900 border-2 border-slate-900 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]"
               >
-                Settle Up
+                <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                <span>Settle Up</span>
               </button>
+            ) : (
+              <div className="px-3.5 py-3 rounded-2xl text-[10px] font-black font-mono uppercase tracking-wider bg-emerald-50 text-emerald-800 border-2 border-slate-900/30 flex items-center justify-center gap-1 text-center min-h-[44px]">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>All Settled</span>
+              </div>
             )}
           </div>
         </div>
