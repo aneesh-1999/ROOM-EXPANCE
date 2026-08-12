@@ -43,8 +43,12 @@ service cloud.firestore {
 
     // Login Activity Logs
     match /login_logs/{logId} {
-      allow read, create, update: if true;
-      allow delete: if false;
+      allow read, write: if true;
+    }
+
+    // Shared Grocery & Shopping List
+    match /shopping_list/{itemId} {
+      allow read, write: if true;
     }
   }
 }

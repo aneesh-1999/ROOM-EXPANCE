@@ -381,9 +381,35 @@
         }
       },
       "required": ["user", "date", "startTime", "endTime", "title", "reminderHoursBefore", "reminderActive"]
+    },
+    "ShoppingItem": {
+      "title": "ShoppingItem",
+      "description": "An item on the shared grocery and household shopping list.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "quantity": { "type": "string" },
+        "category": { "type": "string" },
+        "priority": { "type": "string" },
+        "addedBy": { "type": "string", "enum": ["Ozric", "Pawan"] },
+        "completed": { "type": "boolean" },
+        "completedBy": { "type": "string", "enum": ["Ozric", "Pawan"] },
+        "completedAt": { "type": "string" },
+        "notes": { "type": "string" },
+        "convertedToExpenseId": { "type": "string" },
+        "estimatedCost": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["title", "category", "priority", "addedBy", "completed"]
     }
   },
   "firestore": {
+    "shopping_list": {
+      "schema": {
+        "$ref": "#/entities/ShoppingItem"
+      },
+      "description": "Shared grocery and household shopping list items."
+    },
     "shifts": {
       "schema": {
         "$ref": "#/entities/Shift"

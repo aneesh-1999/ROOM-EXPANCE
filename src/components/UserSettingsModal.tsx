@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Roommate, Profile, Category } from '../types';
 import { getProfile, updateProfile } from '../dbService';
-import { X, ShieldCheck, Key, UserCheck, LogOut, Check, AlertCircle, Sparkles, RefreshCw, Smile, Palette, Landmark, PiggyBank, PhoneCall, Zap, Lock, Bell, Fingerprint } from 'lucide-react';
+import { X, ShieldCheck, Key, UserCheck, LogOut, Check, AlertCircle, Sparkles, RefreshCw, Smile, Palette, Landmark, PiggyBank, PhoneCall, Zap, Lock, Bell, Fingerprint, Database, Download, Upload } from 'lucide-react';
 import { isNotificationSupported, getNotificationPermission, requestNotificationPermission, showNotification, registerWebPushSubscription } from '../notificationService';
 import { useAuthStore } from '../authStore';
 import { isPlatformAuthenticatorAvailable, registerPlatformCredential } from '../biometricService';
+import BackupRestoreModal from './BackupRestoreModal';
 
 interface UserSettingsModalProps {
   currentUser: Roommate;
@@ -44,6 +45,7 @@ export default function UserSettingsModal({
   // FCM / Push Notifications state
   const [notifSupported, setNotifSupported] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
+  const [showBackupModal, setShowBackupModal] = useState(false);
 
   useEffect(() => {
     setNotifSupported(isNotificationSupported());
@@ -539,6 +541,28 @@ export default function UserSettingsModal({
 
               <hr className="border-t-2 border-slate-100" />
 
+              {/* DATA BACKUP & DISASTER RECOVERY */}
+              <div className="space-y-2.5 bg-emerald-50/50 border-2 border-emerald-900 p-4 rounded-2xl shadow-[2px_2px_0px_0px_rgba(5,150,105,1)]">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-900 font-mono flex items-center gap-1.5">
+                  <Database className="w-4 h-4 text-emerald-600" />
+                  Data Backup & Restore Center
+                </h4>
+                <p className="text-[10px] text-slate-600 font-semibold leading-relaxed">
+                  Download a local JSON backup of all expenses, roster shifts, coin history, and private finances. In case of server crashes or resets, upload your backup file to instantly restore all data.
+                </p>
+                <button
+                  id="btn-settings-open-backup-modal"
+                  type="button"
+                  onClick={() => setShowBackupModal(true)}
+                  className="w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] flex items-center justify-center gap-2 cursor-pointer font-sans"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Backup & Restore Center</span>
+                </button>
+              </div>
+
+              <hr className="border-t-2 border-slate-100" />
+
               {/* FCM & WEB PUSH NOTIFICATIONS */}
               <div className="space-y-3 bg-indigo-50 border-2 border-slate-900 p-4 rounded-2xl shadow-[2px_2px_0px_0px_rgba(79,70,229,1)]">
                 <div className="flex items-center justify-between">
@@ -652,10 +676,10 @@ export default function UserSettingsModal({
               <hr className="border-t-2 border-slate-100" />
 
               {/* BIOMETRIC LOCK SECTION */}
-              <div className="space-y-3 bg-[#fcfcff] border-2 border-slate-900 p-4 rounded-2xl shadow-[2px_2px_0px_0px_rgba(91,79,207,1)]">
+              <div className="space-y-3 bg-indigo-50 border-2 border-slate-900 p-4 rounded-2xl shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-[#5B4FCF] font-mono flex items-center gap-1.5">
-                    <Fingerprint className="w-4 h-4 text-[#5B4FCF]" />
+                  <h4 className="text-xs font-black uppercase tracking-wider text-indigo-950 font-sans flex items-center gap-1.5">
+                    <Fingerprint className="w-4 h-4 text-indigo-700 stroke-[2.5px]" />
                     Biometric App-Lock
                   </h4>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -666,12 +690,12 @@ export default function UserSettingsModal({
                       disabled={biometricSettingUp}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5B4FCF] border-2 border-slate-900 animate-pulse-subtle"></div>
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-slate-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-900 after:border-2 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 border-2 border-slate-900"></div>
                   </label>
                 </div>
 
-                <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
-                  Lock and unlock the entire application with Face ID, Touch ID, or fingerprint. Once enabled, standard WebAuthn verification is required on app load or when returning to this tab.
+                <p className="text-xs text-slate-700 font-bold leading-relaxed">
+                  Lock and unlock the entire application with Face ID, Touch ID, or fingerprint. Once enabled, WebAuthn verification is required on app load.
                 </p>
 
                 {biometricEnabled && (
@@ -682,14 +706,14 @@ export default function UserSettingsModal({
                       onClick={() => {
                         onClose(); // close settings modal
                         setUnlocked(false); // instantly lock the app
-                        showNotification('Zindagi Locked', {
+                        showNotification('Roommate Wallet Locked', {
                           body: 'Application locked successfully via security controls.',
                           tag: 'biometric-lock-now'
                         });
                       }}
-                      className="w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 bg-[#0A0A0F] hover:bg-slate-800 text-white border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] flex items-center justify-center gap-1.5 cursor-pointer font-mono"
+                      className="w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all bg-slate-900 hover:bg-slate-800 text-white border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <Lock className="w-3.5 h-3.5 text-[#5B4FCF]" />
+                      <Lock className="w-3.5 h-3.5 text-indigo-400 stroke-[2.5px]" />
                       Lock App Now
                     </button>
                   </div>
@@ -720,6 +744,16 @@ export default function UserSettingsModal({
           )}
         </div>
       </div>
+
+      {showBackupModal && (
+        <BackupRestoreModal 
+          onClose={() => setShowBackupModal(false)} 
+          onRestoreComplete={() => {
+            setShowBackupModal(false);
+            onClose();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -175,3 +175,29 @@ export interface Shift {
   completed?: boolean;
 }
 
+export type ShoppingCategory = 
+  | 'Produce & Groceries' 
+  | 'Pantry & Grains' 
+  | 'Dairy & Refrigerated' 
+  | 'Household & Cleaning' 
+  | 'Snacks & Beverages' 
+  | 'Other';
+
+export type ShoppingPriority = 'Urgent (Running Low)' | 'Normal' | 'Low';
+
+export interface ShoppingItem {
+  id?: string;
+  title: string;
+  quantity?: string;
+  category: ShoppingCategory;
+  priority: ShoppingPriority;
+  addedBy: Roommate;
+  completed: boolean;
+  completedBy?: Roommate;
+  completedAt?: any;
+  notes?: string;
+  convertedToExpenseId?: string;
+  estimatedCost?: number;
+  createdAt?: any;
+}
+

@@ -21,7 +21,8 @@ import DetailedReportModal from './components/DetailedReportModal';
 import InsightsDashboard from './components/InsightsDashboard';
 import PersonalFinance from './components/PersonalFinance';
 import RosterShifts from './components/RosterShifts';
-import { Wallet, Zap, Calendar, HeartHandshake, RefreshCw, AlertCircle, Settings, BarChart3, KeyRound, Lock } from 'lucide-react';
+import { ShoppingList } from './components/ShoppingList';
+import { Wallet, Zap, Calendar, HeartHandshake, RefreshCw, AlertCircle, Settings, BarChart3, KeyRound, Lock, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from './authStore';
 import BiometricLockScreen from './components/BiometricLockScreen';
 
@@ -39,14 +40,14 @@ export default function App() {
   const [allShiftsForReminders, setAllShiftsForReminders] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'insights' | 'workspace' | 'personal' | 'roster'>(() => {
+  const [activeTab, setActiveTab] = useState<'insights' | 'workspace' | 'personal' | 'roster' | 'shopping'>(() => {
     // Persistent tab restoration on launch for authenticated users
     const savedRoommate = (localStorage.getItem('activeRoommate') as Roommate) || 'Ozric';
     const isUnlocked = localStorage.getItem(`unlocked_${savedRoommate}`) === 'true';
     if (isUnlocked) {
       const savedTab = localStorage.getItem('lastAuthenticatedTab');
-      if (savedTab === 'workspace' || savedTab === 'personal' || savedTab === 'roster') {
-        return savedTab as 'insights' | 'workspace' | 'personal' | 'roster';
+      if (savedTab === 'workspace' || savedTab === 'personal' || savedTab === 'roster' || savedTab === 'shopping') {
+        return savedTab as 'insights' | 'workspace' | 'personal' | 'roster' | 'shopping';
       }
       return 'workspace'; // Default to workspace (the Dashboard) when logged in
     }
@@ -332,7 +333,7 @@ export default function App() {
 
   // Keep last authenticated tab in sync for persistence across app reloads
   useEffect(() => {
-    if (unlockedUsers[currentUser] && (activeTab === 'workspace' || activeTab === 'personal' || activeTab === 'roster')) {
+    if (unlockedUsers[currentUser] && (activeTab === 'workspace' || activeTab === 'personal' || activeTab === 'roster' || activeTab === 'shopping')) {
       localStorage.setItem('lastAuthenticatedTab', activeTab);
     }
   }, [activeTab, currentUser, unlockedUsers]);
@@ -460,6 +461,17 @@ export default function App() {
               </button>
             )}
 
+            {unlockedUsers[currentUser] && activeTab !== 'shopping' && (
+              <button
+                id="btn-nav-shopping"
+                onClick={() => setActiveTab('shopping')}
+                className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-emerald-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+                title="Shared Shopping List"
+              >
+                <ShoppingBag className="w-4 h-4 stroke-[2.5px]" />
+              </button>
+            )}
+
             {activeTab === 'personal' && (
               <button
                 id="btn-nav-personal"
@@ -532,6 +544,10 @@ export default function App() {
             currentUser={currentUser}
             nicknames={nicknames}
             profiles={profiles}
+          />
+        ) : activeTab === 'shopping' ? (
+          <ShoppingList 
+            activeRoommate={currentUser}
           />
         ) : (
           <>

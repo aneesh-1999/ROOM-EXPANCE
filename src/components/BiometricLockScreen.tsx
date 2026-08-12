@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../authStore';
-import { Fingerprint, AlertCircle, RefreshCw, Trash2, HeartHandshake, ShieldAlert, Key } from 'lucide-react';
+import { Fingerprint, AlertCircle, RefreshCw, Trash2, HeartHandshake, Lock, KeyRound, ShieldCheck } from 'lucide-react';
 import { showNotification } from '../notificationService';
 
 // Utility helper to convert Base64 string back to ArrayBuffer
@@ -72,20 +72,16 @@ export default function BiometricLockScreen() {
       if (err.name === 'NotAllowedError') {
         setErrorMsg('Authentication failed: The verification prompt was cancelled or timed out.');
       } else {
-        // Unexpected error (e.g. user cleared device biometrics or system error) -> show failure and a fail-open path or reset button
         setErrorMsg(`Biometric mismatch or system error: ${err.message || err}`);
         setShowReset(true);
 
-        // Don't block app usage entirely if WebAuthn throws unexpected system errors -> Fail open
         console.warn('[BiometricLock] Unexpected error. Initiating fail-open recovery protocol...');
         
-        // Show fallback warning toast
         showNotification('Security Fallback', {
           body: 'Unexpected biometric system error. Bypassing lock screen to prevent lockout.',
           tag: 'biometric-failopen'
         });
 
-        // Fail open after a brief delay to let user see status
         setTimeout(() => {
           setUnlocked(true);
         }, 1500);
@@ -99,7 +95,7 @@ export default function BiometricLockScreen() {
   useEffect(() => {
     const timer = setTimeout(() => {
       triggerBiometricUnlock();
-    }, 600); // Small delay for rendering transition smoothness
+    }, 500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -120,107 +116,94 @@ export default function BiometricLockScreen() {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-[#0A0A0F] text-white flex flex-col justify-between p-6 sm:p-12 antialiased selection:bg-[#5B4FCF]/30 select-none">
+    <div className="fixed inset-0 z-[9999] bg-slate-100 flex flex-col justify-between p-4 sm:p-8 font-sans selection:bg-indigo-200 select-none overflow-y-auto">
       
-      {/* Decorative top grid accent */}
-      <div className="absolute inset-x-0 top-0 h-64 bg-radial-gradient from-[#5B4FCF]/10 to-transparent pointer-events-none" />
-
-      {/* Top spacing */}
-      <div className="w-full flex justify-between items-center z-10">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#5B4FCF] animate-pulse" />
-          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-bold">Secure Core v1.4</span>
+      {/* Top Bar Header */}
+      <div className="w-full max-w-md mx-auto flex justify-between items-center z-10 pt-2">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 text-indigo-950 border-2 border-slate-900 text-xs font-black uppercase tracking-wider shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]">
+          <ShieldCheck className="w-3.5 h-3.5 text-indigo-700 stroke-[2.5px]" />
+          Biometric App-Lock
         </div>
-        <div className="text-[10px] font-mono text-slate-500 font-bold">Dublin, IE</div>
+        <div className="text-xs font-black font-mono text-slate-800 bg-white px-2.5 py-1 rounded-lg border-2 border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
+          v1.4 Secure
+        </div>
       </div>
 
-      {/* MAIN LOGO & BIOMETRIC ACTION PANEL */}
-      <div className="flex flex-col items-center justify-center max-w-sm mx-auto w-full space-y-12 z-10 my-auto">
+      {/* Main Lock Card Panel */}
+      <div className="bg-white border-3 border-slate-900 rounded-3xl p-6 sm:p-8 max-w-md w-full mx-auto shadow-[8px_8px_0px_0px_rgba(15,23,42,1)] space-y-6 my-auto text-slate-900">
         
-        {/* Pulsing App Logo */}
-        <div className="relative group">
-          <div className="absolute inset-0 bg-[#5B4FCF] rounded-3xl blur-2xl opacity-20 group-hover:opacity-45 transition duration-500 animate-pulse" />
-          <div className="w-20 h-20 bg-[#12121e] rounded-3xl border-3 border-[#5B4FCF] flex items-center justify-center shadow-[0px_8px_32px_0px_rgba(91,79,207,0.25)] relative text-[#5B4FCF] transition-transform duration-300 transform group-hover:scale-105">
-            <HeartHandshake className="w-10 h-10 stroke-[2]" />
+        {/* App Logo Icon */}
+        <div className="flex justify-center">
+          <div className="w-20 h-20 bg-indigo-600 rounded-2xl border-3 border-slate-900 flex items-center justify-center text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
+            <HeartHandshake className="w-10 h-10 stroke-[2.5px]" />
           </div>
         </div>
 
-        {/* Brand Information */}
+        {/* Brand Header */}
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-black tracking-tight font-display uppercase">Unlock Roommate Wallet</h2>
-          <p className="text-xs text-slate-400 font-semibold max-w-[280px] mx-auto leading-relaxed">
-            Verify your biometrics to authorize your secure roommate wallet and ledger dashboard.
+          <h2 className="text-2xl font-black tracking-tight uppercase text-slate-900">
+            Unlock Roommate Wallet
+          </h2>
+          <p className="text-xs font-bold text-slate-600 max-w-[280px] mx-auto leading-relaxed">
+            Verify your Touch ID, Face ID, or fingerprint biometrics to unlock your shared ledger and financial dashboard.
           </p>
         </div>
 
-        {/* Large Centered Biometric Fingerprint Button */}
-        <div className="flex flex-col items-center space-y-4 w-full">
+        {/* Large Centered Biometric Fingerprint Scanner Button */}
+        <div className="flex flex-col items-center space-y-3 w-full pt-2">
           <button
             onClick={triggerBiometricUnlock}
             disabled={authenticating}
-            className={`w-24 h-24 rounded-full bg-[#12121e] border-3 border-[#5B4FCF] flex items-center justify-center transition-all duration-300 relative group cursor-pointer ${
+            className={`w-24 h-24 rounded-2xl border-3 border-slate-900 flex items-center justify-center transition-all duration-200 cursor-pointer ${
               authenticating 
-                ? 'scale-95 border-amber-500 text-amber-500 shadow-[0px_0px_24px_rgba(245,158,11,0.25)]' 
-                : 'hover:scale-105 text-white active:scale-95 shadow-[0px_0px_32px_rgba(91,79,207,0.2)] hover:border-[#7c71e8]'
+                ? 'bg-amber-300 text-amber-950 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] scale-95' 
+                : 'bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]'
             }`}
+            title="Click to authenticate using biometrics"
           >
             {authenticating ? (
-              <RefreshCw className="w-10 h-10 animate-spin" />
+              <RefreshCw className="w-11 h-11 animate-spin stroke-[2.5px]" />
             ) : (
-              <Fingerprint className="w-12 h-12 stroke-[1.5] group-hover:scale-110 transition-transform duration-300" />
-            )}
-            
-            {/* Pulsing ring on authenticating state */}
-            {authenticating && (
-              <span className="absolute inset-0 rounded-full border-3 border-amber-500 animate-ping opacity-75" />
+              <Fingerprint className="w-12 h-12 stroke-[2px]" />
             )}
           </button>
           
-          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-500 font-black">
-            {authenticating ? 'Scanning Platform Authenticator...' : 'Tap scanner icon to prompt'}
+          <span className="text-xs font-black uppercase tracking-wider text-slate-800 font-mono">
+            {authenticating ? 'Scanning Authenticator...' : 'Tap scanner icon to unlock'}
           </span>
         </div>
 
         {/* Dynamic Status / Error Messages */}
         {errorMsg && (
-          <div className="w-full bg-[#1c1216] border-2 border-rose-950/50 rounded-2xl p-4 flex items-start gap-3 text-slate-300 animate-shake">
-            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+          <div className="w-full bg-rose-100 border-2 border-slate-900 rounded-2xl p-4 flex items-start gap-3 text-slate-900 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
+            <AlertCircle className="w-5 h-5 text-rose-700 shrink-0 mt-0.5 stroke-[2.5px]" />
             <div className="space-y-1">
-              <h5 className="font-bold text-xs text-white">Authentication State</h5>
-              <p className="text-[10px] leading-relaxed text-slate-400 font-medium">{errorMsg}</p>
+              <h5 className="font-black text-xs uppercase tracking-wider text-rose-950">Authentication State</h5>
+              <p className="text-xs font-bold leading-relaxed text-slate-800">{errorMsg}</p>
             </div>
           </div>
         )}
 
-        {/* Action Controls & Fallback options */}
-        <div className="flex flex-col items-center gap-4 w-full pt-4">
-          {!authenticating && errorMsg && (
+        {/* Action Controls */}
+        <div className="flex flex-col items-center gap-3 w-full pt-2">
+          {!authenticating && (
             <button
               onClick={triggerBiometricUnlock}
-              className="px-6 py-2.5 bg-[#5B4FCF] hover:bg-[#4d40b8] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-[0px_4px_12px_rgba(91,79,207,0.3)] active:translate-y-0.5 cursor-pointer flex items-center gap-2"
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-slate-900 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer flex items-center justify-center gap-2"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Try Again
+              <RefreshCw className="w-4 h-4 stroke-[2.5px]" />
+              Scan Biometrics Again
             </button>
           )}
 
-          {/* Fallback Option */}
-          <button
-            onClick={triggerBiometricUnlock}
-            className="text-slate-400 hover:text-white text-xs font-bold underline underline-offset-4 cursor-pointer transition-colors"
-          >
-            Use fallback method
-          </button>
-          {/* TODO: Implement a numeric passcode / PIN lock screen option in future builds for secure credential fallback */}
-
-          {/* Reset Biometric Lock Option (Requirement 4 Edge Cases) */}
+          {/* Emergency Reset Option */}
           {showReset && (
             <button
               onClick={handleResetBiometrics}
-              className="mt-2 text-rose-400 hover:text-rose-300 text-[10px] font-mono uppercase tracking-wider font-bold flex items-center gap-1 cursor-pointer transition-colors"
+              className="w-full py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-950 font-black text-xs uppercase tracking-wider rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer flex items-center justify-center gap-1.5"
               title="Deactivates biometrics instantly and unlocks"
             >
-              <Trash2 className="w-3 h-3" />
+              <Trash2 className="w-3.5 h-3.5 stroke-[2.5px]" />
               Reset Biometric Lock
             </button>
           )}
@@ -228,9 +211,10 @@ export default function BiometricLockScreen() {
 
       </div>
 
-      {/* FOOTER */}
-      <div className="w-full text-center text-[10px] text-slate-600 font-mono tracking-wider z-10 pt-4">
-        🔒 End-to-End Encrypted Platform Validation
+      {/* Footer Notice */}
+      <div className="w-full text-center text-xs font-bold text-slate-700 tracking-wide flex items-center justify-center gap-1.5 pb-2">
+        <Lock className="w-3.5 h-3.5 text-slate-900 stroke-[2.5px]" />
+        <span>End-to-End Encrypted Platform Validation</span>
       </div>
 
     </div>

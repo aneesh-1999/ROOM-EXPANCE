@@ -9,11 +9,12 @@ import {
   serverTimestamp,
   updateDoc,
   getDoc,
+  getDocs,
   setDoc,
   where
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Expense, Roommate, Profile, Category, LoginLog, Shift } from './types';
+import { Expense, Roommate, Profile, Category, LoginLog, Shift, ShoppingItem } from './types';
 import { sendDiscordNotification } from './discordService';
 import { broadcastPushToOtherRoommates, sendPushNotificationToUser } from './notificationService';
 
@@ -851,6 +852,181 @@ export function subscribeShifts(user: Roommate, callback: (shifts: Shift[]) => v
       handleFirestoreError(error, OperationType.GET, SHIFTS_COLLECTION);
     }
   );
+}
+
+// Shared Shopping & Grocery List services
+const SHOPPING_COLLECTION = 'shopping_list';
+
+export async function addShoppingItem(item: Omit<ShoppingItem, 'id' | 'createdAt'>) {
+  try {
+    const cleanedItem = Object.entries(item).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as any);
+
+    const docRef = await addDoc(collection(db, SHOPPING_COLLECTION), {
+      ...cleanedItem,
+      createdAt: serverTimestamp()
+    });
+
+    try {
+      const actorName = item.addedBy || 'Roommate';
+      broadcastPushToOtherRoommates(actorName as Roommate, {
+        title: `🛒 Shopping List: Item Added`,
+        body: `${actorName} added "${item.title}" ${item.quantity ? `(${item.quantity})` : ''} to the grocery list`,
+        tag: `shopping-added-${docRef.id}`
+      });
+    } catch (pushErr) {
+      console.error('[Push API] Error broadcasting push for addShoppingItem:', pushErr);
+    }
+
+    return docRef.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, SHOPPING_COLLECTION);
+  }
+}
+
+export async function updateShoppingItem(id: string, updates: Partial<ShoppingItem>, actor?: Roommate) {
+  try {
+    const docRef = doc(db, SHOPPING_COLLECTION, id);
+    const cleanedUpdates = Object.entries(updates).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as any);
+
+    await updateDoc(docRef, cleanedUpdates);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `${SHOPPING_COLLECTION}/${id}`);
+  }
+}
+
+export async function toggleShoppingItemCompleted(id: string, completed: boolean, actor: Roommate) {
+  try {
+    const docRef = doc(db, SHOPPING_COLLECTION, id);
+    const updates: any = {
+      completed,
+      completedBy: completed ? actor : null,
+      completedAt: completed ? serverTimestamp() : null
+    };
+    await updateDoc(docRef, updates);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `${SHOPPING_COLLECTION}/${id}`);
+  }
+}
+
+export async function deleteShoppingItem(id: string) {
+  try {
+    const docRef = doc(db, SHOPPING_COLLECTION, id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `${SHOPPING_COLLECTION}/${id}`);
+  }
+}
+
+export async function clearCompletedShoppingItems() {
+  try {
+    const q = query(collection(db, SHOPPING_COLLECTION), where('completed', '==', true));
+    const snapshot = await getDocs(q);
+    const deletePromises: Promise<void>[] = [];
+    snapshot.forEach((docSnap) => {
+      deletePromises.push(deleteDoc(doc(db, SHOPPING_COLLECTION, docSnap.id)));
+    });
+    await Promise.all(deletePromises);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, SHOPPING_COLLECTION);
+  }
+}
+
+export function subscribeShoppingList(callback: (items: ShoppingItem[]) => void) {
+  const q = query(collection(db, SHOPPING_COLLECTION));
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items: ShoppingItem[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        items.push({
+          id: docSnap.id,
+          title: data.title || '',
+          quantity: data.quantity || '',
+          category: data.category || 'Other',
+          priority: data.priority || 'Normal',
+          addedBy: data.addedBy || 'Ozric',
+          completed: data.completed || false,
+          completedBy: data.completedBy || undefined,
+          completedAt: data.completedAt ? (data.completedAt.toDate ? data.completedAt.toDate() : new Date(data.completedAt)) : undefined,
+          notes: data.notes || '',
+          convertedToExpenseId: data.convertedToExpenseId || undefined,
+          estimatedCost: data.estimatedCost !== undefined ? data.estimatedCost : undefined,
+          createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt)) : new Date()
+        });
+      });
+
+      // Sort: incomplete/urgent first, then by priority/createdAt
+      const priorityWeight: Record<string, number> = {
+        'Urgent (Running Low)': 3,
+        'Normal': 2,
+        'Low': 1
+      };
+
+      items.sort((a, b) => {
+        if (a.completed !== b.completed) {
+          return a.completed ? 1 : -1; // Uncompleted first
+        }
+        const pA = priorityWeight[a.priority] || 1;
+        const pB = priorityWeight[b.priority] || 1;
+        if (pA !== pB) return pB - pA;
+        return (b.createdAt?.getTime?.() || 0) - (a.createdAt?.getTime?.() || 0);
+      });
+
+      callback(items);
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.GET, SHOPPING_COLLECTION);
+    }
+  );
+}
+
+export async function convertShoppingItemToExpense(
+  item: ShoppingItem,
+  amount: number,
+  paidBy: Roommate,
+  notes?: string
+) {
+  if (!item.id) return;
+
+  const expenseCategory = (item.category === 'Household & Cleaning') ? 'Household Supplies' : 'Shared Groceries';
+  
+  const expenseId = await addExpense({
+    title: `Grocery: ${item.title}${item.quantity ? ` (${item.quantity})` : ''}`,
+    amount: amount,
+    paidBy: paidBy,
+    splitType: '50/50',
+    category: expenseCategory as Category,
+    splitDetails: {
+      OzricAmount: amount / 2,
+      PawanAmount: amount / 2
+    },
+    notes: notes?.trim() || `Purchased from shared shopping list. Added by ${item.addedBy}.`,
+    status: 'confirmed',
+    createdBy: paidBy
+  }, paidBy);
+
+  if (expenseId) {
+    await updateShoppingItem(item.id, {
+      completed: true,
+      completedBy: paidBy,
+      convertedToExpenseId: expenseId,
+      estimatedCost: amount
+    }, paidBy);
+  }
+
+  return expenseId;
 }
 
 
