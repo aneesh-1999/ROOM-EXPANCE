@@ -540,8 +540,7 @@ export default function Dashboard({
                     <MessageSquare className="w-5 h-5 stroke-[2.5]" />
                   </span>
                   <div>
-                    <h5 className="text-[10px] font-black uppercase tracking-widest text-emerald-900 font-mono">Reimbursement Request via WhatsApp</h5>
-                    <p className="text-xs text-slate-600 font-medium mt-0.5">Customize and send a direct message to {otherUserLabel} to coordinate settling your balance.</p>
+                    <h5 className="text-[10px] font-black uppercase tracking-widest text-emerald-900 font-mono">WhatsApp Message to {otherUserLabel}</h5>
                   </div>
                 </div>
 

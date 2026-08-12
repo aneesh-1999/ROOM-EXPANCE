@@ -751,9 +751,9 @@ export default function PersonalFinance({
           <Lock className="w-10 h-10 stroke-[2.5]" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-black text-slate-900 font-display uppercase tracking-tight">Privately Locked Panel</h2>
+          <h2 className="text-2xl font-black text-slate-900 font-display uppercase tracking-tight">Locked Vault</h2>
           <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-            Your personal finance data is 100% private and encrypted within your secure locked profile. Choose and unlock your roommate profile on the Ledger to view.
+            Enter your PIN to access your private account.
           </p>
         </div>
 
@@ -766,11 +766,6 @@ export default function PersonalFinance({
             <ShieldCheck className="w-4 h-4" />
             <span>Unlock Roommate Profile PIN</span>
           </button>
-        </div>
-
-        <div className="p-3 bg-indigo-50 border-2 border-slate-900 rounded-xl flex items-start gap-2.5 text-left text-[10px] text-slate-650 font-bold leading-normal">
-          <Info className="w-4 h-4 text-indigo-600 shrink-0" />
-          <span>Ozric and Pawan each have their own insulated personal records. Logging out or locking your screen prevents anyone else from viewing your metrics.</span>
         </div>
       </div>
     );

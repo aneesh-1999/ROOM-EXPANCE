@@ -282,7 +282,7 @@ export default function InsightsDashboard({
             &amp; Consumption Trends
           </h2>
           <p className="text-xs text-slate-700 font-medium max-w-lg leading-relaxed">
-            Welcome to the public dashboard for <strong className="text-slate-900 font-black">{ozricLabel}</strong> &amp; <strong className="text-slate-900 font-black">{pawanLabel}</strong>'s cohabitation. Track spending habits, review coin meters, and examine dynamic charts. Select your profile to enter the secure manager.
+            Shared household spending analytics for <strong className="text-slate-900 font-black">{ozricLabel}</strong> &amp; <strong className="text-slate-900 font-black">{pawanLabel}</strong>.
           </p>
         </div>
 

@@ -22,7 +22,8 @@ import InsightsDashboard from './components/InsightsDashboard';
 import PersonalFinance from './components/PersonalFinance';
 import RosterShifts from './components/RosterShifts';
 import { ShoppingList } from './components/ShoppingList';
-import { Wallet, Zap, Calendar, HeartHandshake, RefreshCw, AlertCircle, Settings, BarChart3, KeyRound, Lock, ShoppingBag } from 'lucide-react';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { Wallet, Zap, Calendar, HeartHandshake, RefreshCw, AlertCircle, Settings, BarChart3, KeyRound, Lock, ShoppingBag, Smartphone, LayoutGrid } from 'lucide-react';
 import { useAuthStore } from './authStore';
 import BiometricLockScreen from './components/BiometricLockScreen';
 
@@ -63,6 +64,25 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => localStorage.getItem('isAdminLoggedIn') === 'true');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+
+  // Navigation & Mobile App Layout Mode
+  const [navLayout, setNavLayout] = useState<'mobile_app' | 'classic'>(() => {
+    const saved = localStorage.getItem('roommate_nav_layout');
+    return (saved as 'mobile_app' | 'classic') || 'mobile_app';
+  });
+
+  const handleToggleNavLayout = () => {
+    const nextLayout = navLayout === 'mobile_app' ? 'classic' : 'mobile_app';
+    setNavLayout(nextLayout);
+    localStorage.setItem('roommate_nav_layout', nextLayout);
+    showNotification(
+      nextLayout === 'mobile_app' ? 'Mobile App Layout Active' : 'Classic Top Nav Restored',
+      {
+        body: nextLayout === 'mobile_app' ? 'Bottom mobile app bar enabled.' : 'Switched back to top header navigation.',
+        tag: 'nav-layout-switch'
+      }
+    );
+  };
 
   // Check for secret admin query parameter ?admin on mount
   useEffect(() => {
@@ -407,94 +427,113 @@ export default function App() {
   return (
     <div className="min-h-screen bg-indigo-50 text-slate-900 flex flex-col antialiased">
       {/* APP TOP NAVIGATION HEADER */}
-      <header className="sticky top-0 z-40 bg-white border-b-4 border-slate-900 px-4 py-4">
+      <header className="sticky top-0 z-40 bg-white border-b-4 border-slate-900 px-4 py-3 sm:py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div 
             className="flex items-center gap-2.5 cursor-pointer select-none" 
             onDoubleClick={handleLogoDoubleClick}
             title={currentUser === 'Ozric' && unlockedUsers['Ozric'] ? "Double-click to open Admin Panel" : undefined}
           >
-            <div className="w-10 h-10 bg-pink-500 rounded-xl border-2 border-slate-900 flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] text-white">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-pink-500 rounded-xl border-2 border-slate-900 flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] text-white shrink-0">
               <HeartHandshake className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tighter text-slate-900 font-display">
+              <h1 className="text-lg sm:text-xl font-black tracking-tighter text-slate-900 font-display">
                 {nicknames.Ozric} & {nicknames.Pawan}
               </h1>
-              <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest font-mono">
+              <p className="text-[9px] sm:text-[10px] text-indigo-600 font-black uppercase tracking-widest font-mono">
                 Roommate Expense Engine
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            {/* View Mode Switcher Toggles */}
-            {activeTab !== 'insights' && (
-              <button
-                id="btn-nav-insights"
-                onClick={() => setActiveTab('insights')}
-                className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-amber-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
-                title="View Insights"
-              >
-                <BarChart3 className="w-4 h-4 stroke-[2.5px]" />
-              </button>
-            )}
-            {activeTab !== 'workspace' && (
-              <button
-                id="btn-nav-ledger"
-                onClick={() => setActiveTab('workspace')}
-                className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-indigo-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
-                title="View Ledger"
-              >
-                <KeyRound className="w-4 h-4 stroke-[2.5px]" />
-              </button>
-            )}
+          <div className="flex items-center gap-2">
+            {/* Layout Toggle Switcher (Easy 1-tap restore button) */}
+            <button
+              onClick={handleToggleNavLayout}
+              className="p-2 sm:p-2.5 border-2 border-slate-900 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] flex items-center gap-1.5 text-xs font-black"
+              title={navLayout === 'mobile_app' ? "Switch to Classic Top Bar" : "Switch to Mobile App Layout"}
+            >
+              {navLayout === 'mobile_app' ? (
+                <Smartphone className="w-4 h-4 text-indigo-600 stroke-[2.5px]" />
+              ) : (
+                <LayoutGrid className="w-4 h-4 text-slate-700 stroke-[2.5px]" />
+              )}
+              <span className="hidden lg:inline text-[10px] uppercase tracking-wider font-mono">
+                {navLayout === 'mobile_app' ? 'App UI' : 'Classic UI'}
+              </span>
+            </button>
 
-            {unlockedUsers[currentUser] && activeTab !== 'roster' && (
-              <button
-                id="btn-nav-roster"
-                onClick={() => setActiveTab('roster')}
-                className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-pink-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
-                title="Work Roster & Shifts"
-              >
-                <Calendar className="w-4 h-4 stroke-[2.5px]" />
-              </button>
-            )}
+            {/* Desktop / Classic Navigation Tabs */}
+            <div className={`items-center gap-2.5 ${navLayout === 'mobile_app' ? 'hidden md:flex' : 'flex'}`}>
+              {activeTab !== 'insights' && (
+                <button
+                  id="btn-nav-insights"
+                  onClick={() => setActiveTab('insights')}
+                  className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-amber-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+                  title="View Insights"
+                >
+                  <BarChart3 className="w-4 h-4 stroke-[2.5px]" />
+                </button>
+              )}
+              {activeTab !== 'workspace' && (
+                <button
+                  id="btn-nav-ledger"
+                  onClick={() => setActiveTab('workspace')}
+                  className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-indigo-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+                  title="View Ledger"
+                >
+                  <KeyRound className="w-4 h-4 stroke-[2.5px]" />
+                </button>
+              )}
 
-            {unlockedUsers[currentUser] && activeTab !== 'shopping' && (
-              <button
-                id="btn-nav-shopping"
-                onClick={() => setActiveTab('shopping')}
-                className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-emerald-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
-                title="Shared Shopping List"
-              >
-                <ShoppingBag className="w-4 h-4 stroke-[2.5px]" />
-              </button>
-            )}
+              {unlockedUsers[currentUser] && activeTab !== 'roster' && (
+                <button
+                  id="btn-nav-roster"
+                  onClick={() => setActiveTab('roster')}
+                  className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-pink-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+                  title="Work Roster & Shifts"
+                >
+                  <Calendar className="w-4 h-4 stroke-[2.5px]" />
+                </button>
+              )}
 
-            {activeTab === 'personal' && (
-              <button
-                id="btn-nav-personal"
-                onClick={() => setActiveTab('personal')}
-                className="p-2.5 border-2 border-slate-900 rounded-xl bg-emerald-500 text-white shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer"
-                title="Private Vault"
-              >
-                <Lock className="w-4 h-4 stroke-[2.5px]" />
-              </button>
-            )}
+              {unlockedUsers[currentUser] && activeTab !== 'shopping' && (
+                <button
+                  id="btn-nav-shopping"
+                  onClick={() => setActiveTab('shopping')}
+                  className="p-2.5 border-2 border-slate-900 rounded-xl bg-white text-slate-700 hover:text-slate-900 hover:bg-emerald-50 cursor-pointer transition-all shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+                  title="Shared Shopping List"
+                >
+                  <ShoppingBag className="w-4 h-4 stroke-[2.5px]" />
+                </button>
+              )}
 
-            {unlockedUsers[currentUser] && activeTab === 'workspace' && (
+              {activeTab === 'personal' && (
+                <button
+                  id="btn-nav-personal"
+                  onClick={() => setActiveTab('personal')}
+                  className="p-2.5 border-2 border-slate-900 rounded-xl bg-emerald-500 text-white shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer"
+                  title="Private Vault"
+                >
+                  <Lock className="w-4 h-4 stroke-[2.5px]" />
+                </button>
+              )}
+            </div>
+
+            {/* Profile Settings Button */}
+            {unlockedUsers[currentUser] && (
               <button
                 id="btn-settings-open"
                 onClick={() => setIsSettingsOpen(true)}
-                className="p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border-2 border-slate-900 rounded-xl shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer"
+                className="p-2 sm:p-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border-2 border-slate-900 rounded-xl shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer"
                 title="Profile Settings"
               >
                 <Settings className="w-4 h-4 stroke-[2.5px]" />
               </button>
             )}
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 ml-0.5">
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -508,7 +547,7 @@ export default function App() {
       </header>
 
       {/* CORE WRAPPER */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-6 md:py-8 space-y-6">
+      <main className={`flex-1 max-w-4xl w-full mx-auto px-4 py-5 sm:py-6 space-y-6 ${navLayout === 'mobile_app' ? 'pb-24 md:pb-8' : ''}`}>
         {errorMsg && (
           <div className="bg-rose-100 border-2 border-slate-900 rounded-2xl p-4 flex items-start gap-3 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] text-slate-900">
             <AlertCircle className="w-5 h-5 shrink-0 text-rose-600 mt-0.5" />
@@ -673,7 +712,30 @@ export default function App() {
           onProfileUpdated={loadNicknames}
           onOpenDetailedReport={() => setIsDetailedReportOpen(true)}
           onOpenPrivateVault={() => setActiveTab('personal')}
+          navLayout={navLayout}
+          onToggleNavLayout={handleToggleNavLayout}
         />
+      )}
+
+      {/* MOBILE APP BOTTOM NAVIGATION BAR */}
+      {navLayout === 'mobile_app' && (
+        <div className="md:hidden">
+          <MobileBottomNav 
+            activeTab={activeTab}
+            setActiveTab={(tab) => {
+              setActiveTab(tab);
+              setIsSettingsOpen(false);
+            }}
+            onOpenAddExpense={() => {
+              setIsAddExpenseOpen(true);
+              setIsSettingsOpen(false);
+            }}
+            onOpenSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+            isSettingsOpen={isSettingsOpen}
+            isUnlocked={!!unlockedUsers[currentUser]}
+            onRestoreClassicNav={handleToggleNavLayout}
+          />
+        </div>
       )}
 
       {/* SUBTLE FOOTER CREDIT */}
