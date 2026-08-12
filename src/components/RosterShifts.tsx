@@ -6,7 +6,7 @@ import {
   Calendar, Clock, Plus, Trash2, Bell, BellRing, Check, CheckCircle2, X, 
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertCircle, Sparkles, Coffee, Moon, Sun, Briefcase, 
   DollarSign, TrendingUp, HelpCircle, CheckSquare, Square, Pencil, FileText, Image, Download,
-  Lock, Eye, EyeOff
+  Lock, Eye, EyeOff, User, UserCheck, Sunrise, Sunset, RotateCcw, Building2, Euro
 } from 'lucide-react';
 import { showNotification } from '../notificationService';
 import CustomConfirmModal from './CustomConfirmModal';
@@ -26,6 +26,38 @@ const parseLocalDate = (dateStr: string) => {
   const dd = parseInt(parts[2], 10);
   return new Date(yyyy, mm, dd, 0, 0, 0, 0);
 };
+
+function UserAvatarIcon({ user, size = "md" }: { user: Roommate; size?: "sm" | "md" | "lg" }) {
+  const isOzric = user === 'Ozric';
+  const sizeClasses = size === 'sm' 
+    ? 'w-5 h-5' 
+    : size === 'lg' 
+      ? 'w-8 h-8' 
+      : 'w-6 h-6';
+  
+  return (
+    <div 
+      className={`inline-flex items-center justify-center rounded-lg border-1.5 border-slate-900 shrink-0 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] ${
+        isOzric ? 'bg-indigo-600 text-white' : 'bg-amber-400 text-slate-950'
+      } ${sizeClasses}`}
+      title={user}
+    >
+      <User className="w-[60%] h-[60%] stroke-[2.5]" />
+    </div>
+  );
+}
+
+function UserBadge({ user, nickname }: { user: Roommate; nickname?: string }) {
+  const isOzric = user === 'Ozric';
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-mono font-black border-2 border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] ${
+      isOzric ? 'bg-indigo-600 text-white' : 'bg-amber-400 text-slate-950'
+    }`}>
+      <User className="w-3.5 h-3.5 stroke-[2.5]" />
+      <span>{nickname || user}</span>
+    </span>
+  );
+}
 
 export default function RosterShifts({ currentUser, nicknames, profiles }: RosterShiftsProps) {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -259,27 +291,38 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
   }, [currentUser]);
 
   // Handle shift template selections
-  const applyTemplate = (type: 'morning' | 'midday' | 'evening' | 'night' | 'custom') => {
+  const applyTemplate = (type: 'morning' | 'midday' | 'evening' | 'night' | 'off' | 'custom') => {
     if (type === 'morning') {
       setTitle('Morning Shift');
       setStartTime('07:00');
       setEndTime('15:30');
       setUnpaidBreakMinutes(30);
+      setHourlyRate('15.00');
     } else if (type === 'midday') {
       setTitle('Midday Shift');
       setStartTime('09:00');
       setEndTime('17:30');
       setUnpaidBreakMinutes(30);
+      setHourlyRate('15.00');
     } else if (type === 'evening') {
       setTitle('Evening Shift');
       setStartTime('15:00');
       setEndTime('23:30');
       setUnpaidBreakMinutes(30);
+      setHourlyRate('15.00');
     } else if (type === 'night') {
       setTitle('Night Shift');
       setStartTime('00:00');
       setEndTime('08:00');
       setUnpaidBreakMinutes(30);
+      setHourlyRate('15.00');
+    } else if (type === 'off') {
+      setTitle('Day Off');
+      setStartTime('00:00');
+      setEndTime('00:00');
+      setHourlyRate('0');
+      setUnpaidBreakMinutes(0);
+      setReminderActive(false);
     } else {
       setTitle('');
       setStartTime('09:00');
@@ -478,13 +521,14 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
   // Helper calculations for durations & wages
   const getShiftDurationHours = (start: string, end: string, unpaidBreakMins: number = 30) => {
     if (!start || !end) return 0;
+    if (start === end) return 0; // Equal start and end time (e.g. Day Off / 00:00 - 00:00)
     const [sh, sm] = start.split(':').map(Number);
     const [eh, em] = end.split(':').map(Number);
     
     let startMins = sh * 60 + sm;
     let endMins = eh * 60 + em;
     
-    if (endMins <= startMins) {
+    if (endMins < startMins) {
       endMins += 24 * 60; // Overnight shifts wrap
     }
     
@@ -1087,9 +1131,7 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-black text-slate-900 tracking-tight font-display">Work Shifts</h2>
-                <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-300 text-indigo-800 rounded-full text-[10px] font-mono font-black">
-                  {profiles[currentUser]?.avatar || '👤'} {nicknames[currentUser]}
-                </span>
+                <UserBadge user={currentUser} nickname={nicknames[currentUser]} />
               </div>
               <p className="text-xs text-slate-500 font-medium">Manage schedules, track hours & total earnings</p>
             </div>
@@ -1277,93 +1319,121 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
 
       {/* SHIFT CREATOR / EDITOR FORM */}
       {showAddForm && (
-        <div className="bg-amber-50/60 border-4 border-slate-900 p-5 rounded-2xl shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2.5">
-            <h3 className="font-black text-sm uppercase font-mono text-slate-900 flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-indigo-600 stroke-[2.5]" />
-              <span>{editingShiftId ? 'Edit Work Shift' : 'New Work Shift'}</span>
-            </h3>
+        <div className="bg-amber-50/90 border-4 border-slate-900 p-4 sm:p-5 rounded-2xl shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-indigo-600 text-white border-2 border-slate-900 rounded-lg shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
+                <Briefcase className="w-4 h-4 stroke-[2.5]" />
+              </div>
+              <div>
+                <h3 className="font-black text-sm uppercase font-mono text-slate-950">
+                  {editingShiftId ? 'Edit Work Shift' : 'New Work Shift'}
+                </h3>
+                <p className="text-[10px] text-slate-600 font-bold font-mono">
+                  {editingShiftId ? 'Modify shift parameters' : 'Schedule a new shift for your roster'}
+                </p>
+              </div>
+            </div>
             <button 
-              onClick={() => setShowAddForm(false)} 
-              className="p-1 hover:bg-slate-200 rounded-lg text-slate-600 cursor-pointer"
+              onClick={() => {
+                setShowAddForm(false);
+                setEditingShiftId(null);
+              }} 
+              className="p-1.5 bg-white hover:bg-rose-100 border-2 border-slate-900 rounded-xl text-slate-800 transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+              title="Close Form"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 stroke-[2.5]" />
             </button>
           </div>
 
           <form onSubmit={handleAddShift} className="space-y-4">
             {/* Quick Shift Templates */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-wider font-mono block">
+              <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider font-mono block">
                 Quick Shift Templates
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
                 <button
                   type="button"
                   onClick={() => applyTemplate('morning')}
-                  className="p-2 text-xs font-black bg-white border-2 border-slate-900 rounded-xl text-center hover:bg-indigo-50 transition cursor-pointer"
+                  className="p-2.5 text-xs font-mono font-black bg-white border-2 border-slate-900 rounded-xl text-slate-900 flex items-center justify-center gap-1.5 hover:bg-amber-100 transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px]"
                 >
-                  ☀️ Morning (07:00 – 15:30)
+                  <Sunrise className="w-4 h-4 text-amber-500 shrink-0 stroke-[2.5]" />
+                  <span>Morning</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => applyTemplate('midday')}
-                  className="p-2 text-xs font-black bg-white border-2 border-slate-900 rounded-xl text-center hover:bg-sky-50 transition cursor-pointer"
+                  className="p-2.5 text-xs font-mono font-black bg-white border-2 border-slate-900 rounded-xl text-slate-900 flex items-center justify-center gap-1.5 hover:bg-sky-100 transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px]"
                 >
-                  ⛅ Midday (09:00 – 17:30)
+                  <Sun className="w-4 h-4 text-sky-500 shrink-0 stroke-[2.5]" />
+                  <span>Midday</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => applyTemplate('evening')}
-                  className="p-2 text-xs font-black bg-white border-2 border-slate-900 rounded-xl text-center hover:bg-rose-50 transition cursor-pointer"
+                  className="p-2.5 text-xs font-mono font-black bg-white border-2 border-slate-900 rounded-xl text-slate-900 flex items-center justify-center gap-1.5 hover:bg-orange-100 transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px]"
                 >
-                  🌇 Evening (15:00 – 23:30)
+                  <Sunset className="w-4 h-4 text-orange-500 shrink-0 stroke-[2.5]" />
+                  <span>Evening</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => applyTemplate('night')}
-                  className="p-2 text-xs font-black bg-white border-2 border-slate-900 rounded-xl text-center hover:bg-violet-50 transition cursor-pointer"
+                  className="p-2.5 text-xs font-mono font-black bg-white border-2 border-slate-900 rounded-xl text-slate-900 flex items-center justify-center gap-1.5 hover:bg-indigo-100 transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px]"
                 >
-                  🌙 Night (00:00 – 08:00)
+                  <Moon className="w-4 h-4 text-indigo-500 shrink-0 stroke-[2.5]" />
+                  <span>Night</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyTemplate('off')}
+                  className="p-2.5 text-xs font-mono font-black bg-white border-2 border-slate-900 rounded-xl text-slate-900 flex items-center justify-center gap-1.5 hover:bg-emerald-100 transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px]"
+                >
+                  <Coffee className="w-4 h-4 text-emerald-600 shrink-0 stroke-[2.5]" />
+                  <span>Day Off</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => applyTemplate('custom')}
-                  className="p-2 text-xs font-black bg-white border-2 border-slate-900 rounded-xl text-center hover:bg-amber-100 transition cursor-pointer col-span-2 sm:col-span-1"
+                  className="p-2.5 text-xs font-mono font-black bg-white border-2 border-slate-900 rounded-xl text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-100 transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] col-span-2 sm:col-span-1 active:translate-x-[0.5px]"
                 >
-                  ⚙️ Clear
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-500 shrink-0 stroke-[2.5]" />
+                  <span>Reset</span>
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Inputs Section 1: Title, Employer, Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <label htmlFor="shift-title" className="text-xs font-black text-slate-900">
-                  Shift Title <span className="text-rose-500">*</span>
+                <label htmlFor="shift-title" className="text-xs font-black text-slate-950 font-mono flex items-center justify-between">
+                  <span>Shift Title <span className="text-rose-500">*</span></span>
                 </label>
                 <input
                   id="shift-title"
                   type="text"
-                  placeholder="e.g., Morning Shift, General Duty"
+                  placeholder="e.g. Morning Duty, Overtime"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full p-2.5 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold focus:outline-none"
+                  className="w-full p-3 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 h-11"
                   maxLength={50}
                   required
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="shift-employer" className="text-xs font-black text-slate-900">
-                  Employer / Company
+                <label htmlFor="shift-employer" className="text-xs font-black text-slate-950 font-mono flex items-center gap-1">
+                  <Building2 className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Employer / Company</span>
                 </label>
                 <input
                   id="shift-employer"
                   type="text"
-                  placeholder="e.g., Hospital, Retail, Tech"
+                  placeholder="e.g. Hospital, Retail, Tech"
                   value={employerName}
                   onChange={(e) => handleEmployerNameChange(e.target.value)}
-                  className="w-full p-2.5 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold focus:outline-none"
+                  className="w-full p-3 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 h-11"
                   maxLength={50}
                   list="employer-presets-list"
                 />
@@ -1374,80 +1444,86 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
                 </datalist>
               </div>
 
-              <div className="space-y-1">
-                <label htmlFor="shift-date" className="text-xs font-black text-slate-900">
-                  Shift Date <span className="text-rose-500">*</span>
+              <div className="space-y-1 sm:col-span-2 md:col-span-1">
+                <label htmlFor="shift-date" className="text-xs font-black text-slate-950 font-mono flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Shift Date <span className="text-rose-500">*</span></span>
                 </label>
                 <input
                   id="shift-date"
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full p-2.5 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold focus:outline-none font-mono"
+                  className="w-full p-3 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold text-slate-900 focus:outline-none font-mono h-11"
                   required
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Inputs Section 2: Start, End, Hourly Rate, Break */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="space-y-1">
-                <label htmlFor="shift-start" className="text-xs font-black text-slate-900">
-                  Start Time <span className="text-rose-500">*</span>
+                <label htmlFor="shift-start" className="text-xs font-black text-slate-950 font-mono flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-indigo-600 stroke-[2.5]" />
+                  <span>Start <span className="text-rose-500">*</span></span>
                 </label>
                 <input
                   id="shift-start"
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full p-2.5 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold focus:outline-none font-mono"
+                  className="w-full p-3 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold text-slate-900 focus:outline-none font-mono h-11"
                   required
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="shift-end" className="text-xs font-black text-slate-900">
-                  End Time <span className="text-rose-500">*</span>
+                <label htmlFor="shift-end" className="text-xs font-black text-slate-950 font-mono flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-rose-600 stroke-[2.5]" />
+                  <span>End <span className="text-rose-500">*</span></span>
                 </label>
                 <input
                   id="shift-end"
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full p-2.5 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold focus:outline-none font-mono"
+                  className="w-full p-3 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold text-slate-900 focus:outline-none font-mono h-11"
                   required
                 />
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="shift-hourly-rate" className="text-xs font-black text-slate-900">
+                <label htmlFor="shift-hourly-rate" className="text-xs font-black text-slate-950 font-mono">
                   Hourly Rate (€)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-black font-mono">€</span>
+                  <span className="absolute left-3 top-3 text-xs text-slate-400 font-black font-mono">€</span>
                   <input
                     id="shift-hourly-rate"
                     type="number"
                     step="0.01"
+                    inputMode="decimal"
                     placeholder="15.00"
                     value={hourlyRate}
                     onChange={(e) => setHourlyRate(e.target.value)}
-                    className="w-full p-2.5 pl-7 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold focus:outline-none font-mono"
+                    className="w-full p-3 pl-7 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold text-slate-900 focus:outline-none font-mono h-11"
                     min="0"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="shift-unpaid-break" className="text-xs font-black text-slate-900">
-                  Unpaid Break (mins)
+                <label htmlFor="shift-unpaid-break" className="text-xs font-black text-slate-950 font-mono">
+                  Break (mins)
                 </label>
                 <input
                   id="shift-unpaid-break"
                   type="number"
+                  inputMode="numeric"
                   placeholder="30"
                   value={unpaidBreakMinutes}
                   onChange={(e) => setUnpaidBreakMinutes(Number(e.target.value))}
-                  className="w-full p-2.5 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold focus:outline-none font-mono"
+                  className="w-full p-3 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold text-slate-900 focus:outline-none font-mono h-11"
                   min="0"
                 />
               </div>
@@ -1459,94 +1535,103 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
               const rateVal = parseFloat(hourlyRate) || 0;
               const earnings = hours * rateVal;
               return (
-                <div className="bg-white border-2 border-slate-900 p-2.5 rounded-xl flex items-center justify-between gap-2 text-xs">
-                  <span className="font-bold text-slate-700">
-                    Paid Hours: <strong className="text-slate-950 font-mono">{hours.toFixed(2)}h</strong>
-                  </span>
+                <div className="bg-white border-2 border-slate-900 p-3 rounded-xl flex items-center justify-between gap-2 text-xs font-mono shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
+                  <div className="flex items-center gap-1.5 text-slate-700">
+                    <Clock className="w-4 h-4 text-indigo-600 stroke-[2.5]" />
+                    <span>Paid Hours: <strong className="text-slate-950 font-black">{hours.toFixed(2)}h</strong></span>
+                  </div>
                   {rateVal > 0 && (
-                    <span className="font-black text-emerald-700">
-                      Est. Total: <strong className="font-mono text-sm bg-emerald-100 border border-emerald-400 px-2 py-0.5 rounded">€{earnings.toFixed(2)}</strong>
-                    </span>
+                    <div className="flex items-center gap-1 font-black text-emerald-800">
+                      <span>Total:</span>
+                      <strong className="text-xs bg-emerald-100 border border-emerald-400 px-2 py-0.5 rounded text-emerald-950">€{earnings.toFixed(2)}</strong>
+                    </div>
                   )}
                 </div>
               );
             })()}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="col-span-2 flex items-center gap-3">
-                <div className="flex-1 flex items-center gap-2 bg-white/80 border-2 border-slate-900 p-2.5 rounded-xl">
-                  <input
-                    id="checkbox-shift-reminder"
-                    type="checkbox"
-                    checked={reminderActive}
-                    onChange={(e) => setReminderActive(e.target.checked)}
-                    className="w-4 h-4 text-indigo-600 border-2 border-slate-900 rounded cursor-pointer"
-                  />
-                  <label htmlFor="checkbox-shift-reminder" className="text-xs font-black text-slate-950 cursor-pointer select-none">
-                    Shift Reminder
-                  </label>
+            {/* Toggles & Notes */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Reminder Toggle Card */}
+              <button
+                type="button"
+                onClick={() => setReminderActive(!reminderActive)}
+                className={`p-3 rounded-xl border-2 border-slate-900 flex items-center justify-between transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] ${
+                  reminderActive ? 'bg-indigo-50 text-slate-950' : 'bg-white text-slate-600'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Bell className={`w-4 h-4 stroke-[2.5] ${reminderActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <span className="text-xs font-mono font-black">Shift Reminder</span>
                 </div>
+                <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border ${
+                  reminderActive ? 'bg-indigo-600 text-white border-indigo-900' : 'bg-slate-200 text-slate-600 border-slate-300'
+                }`}>
+                  {reminderActive ? 'ACTIVE' : 'OFF'}
+                </span>
+              </button>
 
-                <div className="flex-1 flex items-center gap-2 bg-emerald-50 border-2 border-slate-900 p-2.5 rounded-xl">
-                  <input
-                    id="checkbox-shift-completed"
-                    type="checkbox"
-                    checked={completed}
-                    onChange={(e) => setCompleted(e.target.checked)}
-                    className="w-4 h-4 text-emerald-600 border-2 border-slate-900 rounded cursor-pointer"
-                  />
-                  <label htmlFor="checkbox-shift-completed" className="text-xs font-black text-emerald-950 cursor-pointer select-none">
-                    Completed
-                  </label>
+              {/* Completed Toggle Card */}
+              <button
+                type="button"
+                onClick={() => setCompleted(!completed)}
+                className={`p-3 rounded-xl border-2 border-slate-900 flex items-center justify-between transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] ${
+                  completed ? 'bg-emerald-100 text-slate-950' : 'bg-white text-slate-600'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className={`w-4 h-4 stroke-[2.5] ${completed ? 'text-emerald-700' : 'text-slate-400'}`} />
+                  <span className="text-xs font-mono font-black">Mark Completed</span>
                 </div>
-              </div>
-
-              <div>
-                <select
-                  id="shift-reminder-hours"
-                  value={reminderHoursBefore}
-                  onChange={(e) => setReminderHoursBefore(Number(e.target.value))}
-                  className="w-full p-2.5 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold focus:outline-none"
-                  disabled={!reminderActive}
-                >
-                  <option value={1}>1 Hour Before</option>
-                  <option value={2}>2 Hours Before</option>
-                  <option value={3}>3 Hours Before</option>
-                </select>
-              </div>
+                <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded border ${
+                  completed ? 'bg-emerald-700 text-white border-emerald-900' : 'bg-slate-200 text-slate-600 border-slate-300'
+                }`}>
+                  {completed ? 'DONE' : 'PENDING'}
+                </span>
+              </button>
             </div>
 
+            {/* Notes */}
             <div className="space-y-1">
-              <label htmlFor="shift-notes" className="text-xs font-black text-slate-900">
-                Notes
+              <label htmlFor="shift-notes" className="text-xs font-black text-slate-950 font-mono flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5 text-slate-600" />
+                <span>Shift Notes (Optional)</span>
               </label>
               <textarea
                 id="shift-notes"
-                placeholder="Optional shift notes..."
+                placeholder="Optional shift notes, instructions or reminders..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full p-2 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold focus:outline-none h-14 resize-none"
+                className="w-full p-3 bg-white border-2 border-slate-900 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 h-16 resize-none"
                 maxLength={200}
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-1">
+            {/* Form Actions */}
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => {
                   setShowAddForm(false);
                   setEditingShiftId(null);
                 }}
-                className="px-4 py-2 bg-white hover:bg-slate-100 border-2 border-slate-900 rounded-xl text-xs font-black uppercase transition shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] cursor-pointer"
+                className="w-full sm:w-auto px-5 py-3 bg-white hover:bg-slate-100 border-2 border-slate-900 rounded-xl text-xs font-mono font-black uppercase transition shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white border-2 border-slate-900 rounded-xl text-xs font-black uppercase transition shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] disabled:opacity-55 cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white border-2 border-slate-900 rounded-xl text-xs font-mono font-black uppercase transition shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] disabled:opacity-55 cursor-pointer flex items-center justify-center gap-2"
               >
-                {isSubmitting ? 'Saving...' : editingShiftId ? 'Update Shift' : 'Add Shift'}
+                {isSubmitting ? (
+                  <span>Saving...</span>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 stroke-[2.5]" />
+                    <span>{editingShiftId ? 'Update Shift' : 'Save Shift'}</span>
+                  </>
+                )}
               </button>
             </div>
           </form>
@@ -1564,8 +1649,9 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
         </button>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs sm:text-sm font-black text-slate-900 font-mono text-center">
-            📅 {weekDays[0].toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })} – {weekDays[6].toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' })}
+          <span className="text-xs sm:text-sm font-black text-slate-900 font-mono text-center flex items-center justify-center gap-1.5">
+            <Calendar className="w-4 h-4 text-indigo-600 shrink-0 stroke-[2.5]" />
+            <span>{weekDays[0].toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })} – {weekDays[6].toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
           </span>
           <button
             onClick={() => navigateWeek('current')}
@@ -1695,7 +1781,7 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
                             <div className="py-2 px-3 bg-emerald-50 border-2 border-emerald-300 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2">
                               <p className="text-xs text-emerald-900 font-mono font-bold flex items-center gap-1.5">
                                 <CheckCircle2 className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
-                                Today's shift is marked as completed! 🎉
+                                Today's shift is marked as completed!
                               </p>
                               <button
                                 onClick={() => setHideCompleted(false)}
@@ -1706,8 +1792,9 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
                             </div>
                           ) : (
                             <div className="py-2 text-center">
-                              <p className="text-xs text-slate-500 font-mono font-bold">
-                                ☕ No shifts scheduled for Today.
+                              <p className="text-xs text-slate-500 font-mono font-bold flex items-center justify-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5 text-indigo-500 stroke-[2.5]" />
+                                No shifts scheduled for Today.
                               </p>
                             </div>
                           )
@@ -1720,10 +1807,10 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
                         <div className="space-y-2">
                           {displayedShifts.map((shift) => {
                             const isMine = shift.user === currentUser;
-                            const userProf = profiles[shift.user];
                             const hours = getShiftDurationHours(shift.startTime, shift.endTime, shift.unpaidBreakMinutes ?? 30);
                             const earnings = getShiftEarnings(shift);
                             const isExpanded = expandedShiftIds[shift.id!] ?? showAllDetails;
+                            const isOffShift = shift.title.toLowerCase().includes('off') || (shift.startTime === shift.endTime);
 
                             return (
                               <div 
@@ -1731,21 +1818,30 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
                                 className={`p-3 rounded-xl border-2 border-slate-900 transition-all ${
                                   shift.completed 
                                     ? 'bg-emerald-50/80 border-emerald-900' 
-                                    : isMine 
-                                      ? 'bg-amber-50/60' 
-                                      : 'bg-slate-50'
+                                    : isOffShift
+                                      ? 'bg-teal-50/60 border-teal-900'
+                                      : isMine 
+                                        ? 'bg-amber-50/60' 
+                                        : 'bg-slate-50'
                                 }`}
                               >
                                 {/* Primary Clean Row */}
                                 <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
                                   <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                    <span className="text-base shrink-0">{userProf?.avatar || (isMine ? '🐼' : '🦊')}</span>
+                                    <UserAvatarIcon user={shift.user} size="sm" />
                                     <h4 className="font-black text-sm text-slate-950 truncate">{shift.title}</h4>
                                     
-                                    <span className="text-xs font-mono font-bold text-slate-800 bg-white/90 border border-slate-300 px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0">
-                                      <Clock className="w-3.5 h-3.5 text-indigo-600 stroke-[2.5]" />
-                                      {shift.startTime} – {shift.endTime} ({hours.toFixed(1)}h)
-                                    </span>
+                                    {isOffShift ? (
+                                      <span className="text-xs font-mono font-bold text-teal-950 bg-teal-100/90 border border-teal-300 px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0">
+                                        <Coffee className="w-3.5 h-3.5 text-teal-700 stroke-[2.5]" />
+                                        <span>Day Off</span>
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs font-mono font-bold text-slate-800 bg-white/90 border border-slate-300 px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0">
+                                        <Clock className="w-3.5 h-3.5 text-indigo-600 stroke-[2.5]" />
+                                        <span>{shift.startTime} – {shift.endTime} ({hours.toFixed(1)}h)</span>
+                                      </span>
+                                    )}
 
                                     <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-full border shrink-0 ${
                                       shift.completed
@@ -1788,28 +1884,31 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
                                   <div className="mt-2.5 pt-2.5 border-t border-slate-200/80 space-y-2 text-xs font-mono text-slate-700 animate-fade-in">
                                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 font-bold">
                                       {shift.employerName && (
-                                        <span className="bg-white border border-slate-300 px-2 py-0.5 rounded text-slate-700">
-                                          🏢 Employer: <strong>{shift.employerName}</strong>
+                                        <span className="bg-white border border-slate-300 px-2 py-0.5 rounded text-slate-700 flex items-center gap-1">
+                                          <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0 stroke-[2]" />
+                                          <span>Employer: <strong>{shift.employerName}</strong></span>
                                         </span>
                                       )}
 
                                       {earnings > 0 && (
-                                        <span className="bg-white border border-slate-300 px-2 py-0.5 rounded text-slate-800">
-                                          💶 Pay: €{shift.hourlyRate}/h → <strong className={shift.completed ? 'text-emerald-700' : 'text-amber-800'}>€{earnings.toFixed(2)}</strong>
+                                        <span className="bg-white border border-slate-300 px-2 py-0.5 rounded text-slate-800 flex items-center gap-1">
+                                          <Euro className="w-3.5 h-3.5 text-emerald-600 shrink-0 stroke-[2]" />
+                                          <span>Pay: €{shift.hourlyRate}/h → <strong className={shift.completed ? 'text-emerald-700' : 'text-amber-800'}>€{earnings.toFixed(2)}</strong></span>
                                         </span>
                                       )}
 
                                       {shift.reminderActive && (
                                         <span className="flex items-center gap-1 text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
-                                          <Bell className="w-3 h-3" />
+                                          <Bell className="w-3 h-3 stroke-[2.5]" />
                                           Reminder ({shift.reminderHoursBefore}h before)
                                         </span>
                                       )}
                                     </div>
 
                                     {shift.notes && (
-                                      <p className="text-xs text-slate-600 font-medium bg-white/90 border border-slate-200 p-2 rounded-lg">
-                                        💡 {shift.notes}
+                                      <p className="text-xs text-slate-600 font-medium bg-white/90 border border-slate-200 p-2 rounded-lg flex items-start gap-1.5">
+                                        <FileText className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5 stroke-[2]" />
+                                        <span>{shift.notes}</span>
                                       </p>
                                     )}
 
@@ -1931,6 +2030,22 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
 
             {/* Calendar Grid Body */}
             <div className="p-3 overflow-y-auto flex-1 space-y-3">
+              {/* Legend for Shift Types */}
+              <div className="flex items-center justify-center gap-4 text-[10px] font-mono font-black text-slate-600 bg-slate-50 border border-slate-200 p-2 rounded-xl">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-slate-900"></span>
+                  <span>Work Shift</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-900"></span>
+                  <span>Completed</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 border border-slate-900"></span>
+                  <span className="text-rose-700">Day Off</span>
+                </div>
+              </div>
+
               {/* Day Name Headers */}
               <div className="grid grid-cols-7 text-center border-b-2 border-slate-200 pb-1">
                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayName) => (
@@ -1948,6 +2063,9 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
                   const todayStr = formatDateKey(new Date());
                   const isToday = todayStr === dateStr;
 
+                  const hasOffShift = dayShifts.some(s => s.title.toLowerCase().includes('off') || (s.startTime === s.endTime));
+                  const hasRegularShift = dayShifts.some(s => !(s.title.toLowerCase().includes('off') || (s.startTime === s.endTime)));
+
                   return (
                     <button
                       key={dateStr}
@@ -1955,19 +2073,21 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
                       onClick={() => {
                         setSelectedCalendarDate(dateStr);
                       }}
-                      className={`p-1.5 min-h-[52px] rounded-xl border-2 flex flex-col justify-between transition cursor-pointer relative text-left ${
+                      className={`p-1.5 min-h-[54px] rounded-xl border-2 flex flex-col justify-between transition cursor-pointer relative text-left ${
                         isSelected
                           ? 'bg-amber-300 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] scale-[1.02] z-10'
                           : isToday
                             ? 'bg-indigo-100 border-indigo-600 font-bold'
-                            : isCurrentMonth
-                              ? 'bg-white border-slate-300 hover:bg-slate-50'
-                              : 'bg-slate-100/50 border-transparent text-slate-300'
+                            : hasOffShift && !hasRegularShift
+                              ? 'bg-rose-50/90 border-rose-400 hover:bg-rose-100'
+                              : isCurrentMonth
+                                ? 'bg-white border-slate-300 hover:bg-slate-50'
+                                : 'bg-slate-100/50 border-transparent text-slate-300'
                       }`}
                     >
                       <div className="flex items-center justify-between w-full">
                         <span className={`text-xs font-mono font-black ${
-                          isSelected ? 'text-slate-950' : isCurrentMonth ? 'text-slate-800' : 'text-slate-300'
+                          isSelected ? 'text-slate-950' : hasOffShift && !hasRegularShift ? 'text-rose-950' : isCurrentMonth ? 'text-slate-800' : 'text-slate-300'
                         }`}>
                           {dayDate.getDate()}
                         </span>
@@ -1978,15 +2098,22 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
 
                       {/* Shift Count / Badges */}
                       <div className="flex flex-wrap gap-0.5 mt-1">
-                        {dayShifts.slice(0, 3).map((s, idx) => (
-                          <span
-                            key={s.id || idx}
-                            className={`w-2 h-2 rounded-full border border-slate-900 ${
-                              s.completed ? 'bg-emerald-500' : 'bg-amber-400'
-                            }`}
-                            title={`${s.title} (${s.startTime} - ${s.endTime})`}
-                          />
-                        ))}
+                        {dayShifts.slice(0, 3).map((s, idx) => {
+                          const isOff = s.title.toLowerCase().includes('off') || (s.startTime === s.endTime);
+                          return (
+                            <span
+                              key={s.id || idx}
+                              className={`w-2.5 h-2.5 rounded-full border border-slate-900 ${
+                                isOff 
+                                  ? 'bg-rose-500 ring-1 ring-rose-300' 
+                                  : s.completed 
+                                    ? 'bg-emerald-500' 
+                                    : 'bg-amber-400'
+                              }`}
+                              title={`${s.title}${isOff ? ' (Day Off)' : ` (${s.startTime} - ${s.endTime})`}`}
+                            />
+                          );
+                        })}
                         {dayShifts.length > 3 && (
                           <span className="text-[8px] font-black font-mono text-slate-600">
                             +{dayShifts.length - 3}
@@ -2002,8 +2129,9 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
               {selectedCalendarDate && (
                 <div className="bg-slate-50 border-2 border-slate-900 rounded-2xl p-3 space-y-2 mt-2">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
-                    <span className="text-xs font-black font-mono text-slate-900">
-                      📅 {parseLocalDate(selectedCalendarDate).toLocaleDateString('en-IE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    <span className="text-xs font-black font-mono text-slate-900 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-indigo-600 stroke-[2.5]" />
+                      <span>{parseLocalDate(selectedCalendarDate).toLocaleDateString('en-IE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
                     </span>
                     <span className="text-[10px] font-mono font-black text-indigo-700 bg-indigo-100 border border-indigo-300 px-2 py-0.5 rounded-full">
                       {getShiftsForDate(selectedCalendarDate).length} {getShiftsForDate(selectedCalendarDate).length === 1 ? 'Shift' : 'Shifts'}
@@ -2014,36 +2142,57 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
                   <div className="space-y-1.5 max-h-36 overflow-y-auto">
                     {getShiftsForDate(selectedCalendarDate).length === 0 ? (
                       <p className="text-[10px] text-slate-400 font-mono text-center py-2 italic">
-                        No work shifts logged for this date.
+                        No work shifts or day-off logged for this date.
                       </p>
                     ) : (
-                      getShiftsForDate(selectedCalendarDate).map((shift) => (
-                        <div
-                          key={shift.id}
-                          className="p-2 bg-white border border-slate-900 rounded-xl flex items-center justify-between text-xs"
-                        >
-                          <div>
-                            <p className="font-black text-slate-900 text-[11px]">{shift.title}</p>
-                            <p className="text-[9px] font-mono text-slate-500">⏰ {shift.startTime} – {shift.endTime}</p>
+                      getShiftsForDate(selectedCalendarDate).map((shift) => {
+                        const isOff = shift.title.toLowerCase().includes('off') || (shift.startTime === shift.endTime);
+                        return (
+                          <div
+                            key={shift.id}
+                            className={`p-2.5 rounded-xl border-2 flex items-center justify-between text-xs transition ${
+                              isOff
+                                ? 'bg-rose-50/90 border-rose-500 text-rose-950'
+                                : 'bg-white border-slate-900 text-slate-900'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-black text-[11px]">{shift.title}</p>
+                                {isOff && (
+                                  <span className="text-[9px] font-mono font-black text-white bg-rose-600 border border-rose-900 px-1.5 py-0.2 rounded flex items-center gap-1">
+                                    <Coffee className="w-2.5 h-2.5 stroke-[2.5]" />
+                                    DAY OFF
+                                  </span>
+                                )}
+                              </div>
+                              <p className={`text-[9px] font-mono font-bold ${isOff ? 'text-rose-700' : 'text-slate-500'}`}>
+                                {isOff ? 'No work scheduled' : `⏰ ${shift.startTime} – ${shift.endTime}`}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  handleEditClick(shift);
+                                  setShowCalendarModal(false);
+                                }}
+                                className={`px-2 py-1 border rounded-lg text-[9px] font-black font-mono uppercase cursor-pointer ${
+                                  isOff
+                                    ? 'bg-rose-100 hover:bg-rose-200 text-rose-950 border-rose-400'
+                                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-slate-900'
+                                }`}
+                              >
+                                Edit
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => {
-                                handleEditClick(shift);
-                                setShowCalendarModal(false);
-                              }}
-                              className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-slate-900 rounded-lg text-[9px] font-black uppercase cursor-pointer"
-                            >
-                              Edit
-                            </button>
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
 
                   {/* Actions for selected date */}
-                  <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div className="grid grid-cols-3 gap-2 pt-1">
                     <button
                       type="button"
                       onClick={() => {
@@ -2055,10 +2204,25 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
                         setEndTime('15:30');
                         setShowCalendarModal(false);
                       }}
-                      className="py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase font-mono rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-1 cursor-pointer"
+                      className="py-2 px-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase font-mono rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                      Add Shift Here
+                      Add Shift
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDate(selectedCalendarDate);
+                        setShowAddForm(true);
+                        setEditingShiftId(null);
+                        applyTemplate('off');
+                        setShowCalendarModal(false);
+                      }}
+                      className="py-2 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 font-black text-[10px] uppercase font-mono rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <Coffee className="w-3.5 h-3.5 stroke-[2.5] text-emerald-700" />
+                      Day Off
                     </button>
 
                     <button
@@ -2067,10 +2231,10 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
                         jumpToDateWeek(selectedCalendarDate);
                         setShowCalendarModal(false);
                       }}
-                      className="py-2 px-3 bg-white hover:bg-slate-100 text-slate-900 font-black text-[10px] uppercase font-mono rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-1 cursor-pointer"
+                      className="py-2 px-2 bg-white hover:bg-slate-100 text-slate-900 font-black text-[10px] uppercase font-mono rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <Calendar className="w-3.5 h-3.5 stroke-[2.5] text-indigo-600" />
-                      View This Week
+                      View Week
                     </button>
                   </div>
                 </div>
