@@ -55,6 +55,10 @@ export default function App() {
     return 'insights'; // Show home page/insights if not logged in
   });
   
+  // Private Vault State
+  const [vaultSection, setVaultSection] = useState<'dashboard' | 'transactions' | 'savings' | 'recurring'>('dashboard');
+  const [isVaultAddOpen, setIsVaultAddOpen] = useState(false);
+
   // Modals/Drawers
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isReceiptScannerOpen, setIsReceiptScannerOpen] = useState(false);
@@ -509,12 +513,16 @@ export default function App() {
                 </button>
               )}
 
-              {activeTab === 'personal' && (
+              {unlockedUsers[currentUser] && (
                 <button
                   id="btn-nav-personal"
-                  onClick={() => setActiveTab('personal')}
-                  className="p-2.5 border-2 border-slate-900 rounded-xl bg-emerald-500 text-white shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer"
-                  title="Private Vault"
+                  onClick={() => setActiveTab(activeTab === 'personal' ? 'workspace' : 'personal')}
+                  className={`p-2.5 border-2 border-slate-900 rounded-xl shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer ${
+                    activeTab === 'personal' 
+                      ? 'bg-emerald-500 text-white ring-2 ring-emerald-300' 
+                      : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+                  }`}
+                  title={activeTab === 'personal' ? "Exit Private Vault" : "Open Private Vault"}
                 >
                   <Lock className="w-4 h-4 stroke-[2.5px]" />
                 </button>
@@ -577,6 +585,10 @@ export default function App() {
             }}
             nicknames={nicknames}
             profiles={profiles}
+            activeSection={vaultSection}
+            setActiveSection={setVaultSection}
+            isAddTxOpen={isVaultAddOpen}
+            setIsAddTxOpen={setIsVaultAddOpen}
           />
         ) : activeTab === 'roster' ? (
           <RosterShifts 
@@ -725,6 +737,11 @@ export default function App() {
             setActiveTab={(tab) => {
               setActiveTab(tab);
               setIsSettingsOpen(false);
+            }}
+            vaultSection={vaultSection}
+            setVaultSection={setVaultSection}
+            onOpenVaultAddTx={() => {
+              setIsVaultAddOpen(true);
             }}
             onOpenAddExpense={() => {
               setIsAddExpenseOpen(true);

@@ -68,6 +68,10 @@ interface PersonalFinanceProps {
   onBackToWorkspace: () => void;
   nicknames: Record<Roommate, string>;
   profiles: Record<Roommate, { id: Roommate; avatar?: string; accentColor?: string; nickname?: string }>;
+  activeSection?: 'dashboard' | 'transactions' | 'savings' | 'recurring';
+  setActiveSection?: (section: 'dashboard' | 'transactions' | 'savings' | 'recurring') => void;
+  isAddTxOpen?: boolean;
+  setIsAddTxOpen?: (open: boolean) => void;
 }
 
 const DEFAULT_EXCHANGE_RATES = {
@@ -96,7 +100,11 @@ export default function PersonalFinance({
   onPromptUnlock, 
   onBackToWorkspace,
   nicknames, 
-  profiles 
+  profiles,
+  activeSection: propsActiveSection,
+  setActiveSection: propsSetActiveSection,
+  isAddTxOpen: propsIsAddTxOpen,
+  setIsAddTxOpen: propsSetIsAddTxOpen
 }: PersonalFinanceProps) {
   // Database States
   const [accounts, setAccounts] = useState<PersonalAccount[]>([]);
@@ -161,14 +169,24 @@ export default function PersonalFinance({
     };
   }, [currentUser, isUnlocked]);
 
-  // Tab State
-  const [activeSection, setActiveSection] = useState<'dashboard' | 'transactions' | 'savings' | 'recurring'>('dashboard');
+  // Tab State (Supports Controlled vs Internal)
+  const [internalActiveSection, setInternalActiveSection] = useState<'dashboard' | 'transactions' | 'savings' | 'recurring'>('dashboard');
+  const activeSection = propsActiveSection !== undefined ? propsActiveSection : internalActiveSection;
+  const setActiveSection = (sec: 'dashboard' | 'transactions' | 'savings' | 'recurring') => {
+    if (propsSetActiveSection) propsSetActiveSection(sec);
+    setInternalActiveSection(sec);
+  };
 
   // Privacy State
   const [privacyMode, setPrivacyMode] = useState(true);
 
-  // Input states for new items
-  const [isAddTxOpen, setIsAddTxOpen] = useState(false);
+  // Input states for new items (Supports Controlled vs Internal)
+  const [internalIsAddTxOpen, setInternalIsAddTxOpen] = useState(false);
+  const isAddTxOpen = propsIsAddTxOpen !== undefined ? propsIsAddTxOpen : internalIsAddTxOpen;
+  const setIsAddTxOpen = (open: boolean) => {
+    if (propsSetIsAddTxOpen) propsSetIsAddTxOpen(open);
+    setInternalIsAddTxOpen(open);
+  };
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
   const [isEditAccountOpen, setIsEditAccountOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<PersonalAccount | null>(null);
@@ -772,112 +790,112 @@ export default function PersonalFinance({
   }
 
   return (
-    <div className="space-y-8 animate-fade-in pb-16">
+    <div className="space-y-4 font-sans pb-12">
       
       {/* HEADER SECTION WITH NAVIGATION */}
-      <div className="bg-emerald-100 border-4 border-slate-900 rounded-[32px] p-6 shadow-[8px_8px_0px_0px_rgba(15,23,42,1)] flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-4 text-center md:text-left">
-          <div className="p-3 bg-white border-2 border-slate-900 rounded-2xl shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] shrink-0 text-2xl">
+      <div className="bg-emerald-100 border-2 border-slate-900 rounded-2xl p-3.5 sm:p-5 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-3 text-center sm:text-left w-full sm:w-auto">
+          <div className="p-2 bg-white border border-slate-900 rounded-xl shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] shrink-0 text-xl">
             {profiles[currentUser]?.avatar || '👤'}
           </div>
-          <div>
-            <div className="flex items-center justify-center md:justify-start gap-1.5 flex-wrap">
-              <h2 className="text-xl font-black text-slate-900 font-display uppercase tracking-tight">{nicknames[currentUser] || currentUser}'s Private Vault</h2>
-              <span className="px-2 py-0.5 bg-slate-900 text-emerald-400 text-[8px] font-mono font-black uppercase rounded border border-emerald-500 shadow-[1px_1px_0px_0px_rgba(16,185,129,1)]">
-                Secure 100% Private
+          <div className="min-w-0">
+            <div className="flex items-center justify-center sm:justify-start gap-1 flex-wrap">
+              <h2 className="text-base sm:text-lg font-black text-slate-900 font-display uppercase tracking-tight truncate max-w-[200px] sm:max-w-none">{nicknames[currentUser] || currentUser}'s Private Vault</h2>
+              <span className="px-1.5 py-0.2 bg-slate-900 text-emerald-400 text-[8px] font-mono font-black uppercase rounded border border-emerald-500">
+                100% Private
               </span>
               <button 
                 onClick={() => setPrivacyMode(!privacyMode)}
-                className="ml-2 p-1.5 bg-white border border-slate-900 rounded-lg hover:bg-slate-100 transition shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] flex items-center justify-center text-slate-700 cursor-pointer"
+                className="p-1 bg-white border border-slate-900 rounded-md hover:bg-slate-100 transition shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] text-slate-700 cursor-pointer"
                 title={privacyMode ? "Show Balances" : "Hide Balances"}
               >
-                {privacyMode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {privacyMode ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
               </button>
             </div>
-            <p className="text-[10px] text-slate-600 font-bold">Unshared assets, remittance histories, personal expenses, and saving benchmarks</p>
+            <p className="text-[9px] text-slate-600 font-bold hidden sm:block">Unshared assets, remittance histories, and saving benchmarks</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
+        <div className="flex items-center justify-end gap-1.5 w-full sm:w-auto">
           <button
             id="btn-personal-back-workspace"
             onClick={onBackToWorkspace}
-            className="px-4 py-2 bg-slate-900 text-white border-2 border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-850 transition cursor-pointer flex items-center gap-1.5"
+            className="px-2.5 py-1.5 bg-slate-900 text-white border border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-850 transition cursor-pointer flex items-center gap-1 min-h-[34px]"
           >
-            <ArrowLeftRight className="w-3.5 h-3.5" />
-            <span>Shared Workspace</span>
+            <ArrowLeftRight className="w-3 h-3" />
+            <span className="hidden xs:inline">Shared</span>
           </button>
 
           <button
             id="btn-export-csv"
             onClick={handleExportCSV}
-            className="px-4 py-2 bg-white text-slate-900 border-2 border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5"
+            className="px-2.5 py-1.5 bg-white text-slate-900 border border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-50 transition cursor-pointer flex items-center gap-1 min-h-[34px]"
             title="Download Excel/CSV Report"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export Report</span>
+            <Download className="w-3 h-3" />
+            <span className="hidden xs:inline">Export</span>
           </button>
           
           <button
             id="btn-personal-add-tx"
             onClick={() => setIsAddTxOpen(true)}
-            className="px-5 py-2.5 bg-pink-500 text-white border-2 border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] hover:bg-pink-600 transition cursor-pointer flex items-center gap-1.5"
+            className="px-3 py-1.5 bg-pink-500 text-white border border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] hover:bg-pink-600 transition cursor-pointer flex items-center gap-1 min-h-[34px]"
           >
-            <Plus className="w-4 h-4 stroke-[3px]" />
+            <Plus className="w-3.5 h-3.5 stroke-[3px]" />
             <span>Add Entry</span>
           </button>
         </div>
       </div>
 
       {/* INNER VIEW SELECTOR BAR */}
-      <div className="flex flex-wrap gap-2.5 bg-slate-100 p-1.5 border-3 border-slate-900 rounded-2xl shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-slate-100 p-1.5 border-2 border-slate-900 rounded-2xl shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
         <button
           id="btn-subtab-dashboard"
           onClick={() => setActiveSection('dashboard')}
-          className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 truncate ${
             activeSection === 'dashboard' 
-              ? 'bg-slate-900 text-white shadow-sm border border-slate-950' 
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              ? 'bg-emerald-600 text-white shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] border border-slate-900 font-black' 
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 font-bold'
           }`}
         >
-          <TrendingUp className="w-3.5 h-3.5" />
-          <span>Stats &amp; Wallets</span>
+          <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Wallets</span>
         </button>
         <button
           id="btn-subtab-transactions"
           onClick={() => setActiveSection('transactions')}
-          className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 truncate ${
             activeSection === 'transactions' 
-              ? 'bg-slate-900 text-white shadow-sm border border-slate-950' 
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              ? 'bg-emerald-600 text-white shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] border border-slate-900 font-black' 
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 font-bold'
           }`}
         >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Private Ledger</span>
+          <FileText className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Ledger</span>
         </button>
         <button
           id="btn-subtab-savings"
           onClick={() => setActiveSection('savings')}
-          className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 truncate ${
             activeSection === 'savings' 
-              ? 'bg-slate-900 text-white shadow-sm border border-slate-950' 
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              ? 'bg-emerald-600 text-white shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] border border-slate-900 font-black' 
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 font-bold'
           }`}
         >
-          <Goal className="w-3.5 h-3.5" />
-          <span>Savings Benchmarks</span>
+          <Goal className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Savings</span>
         </button>
         <button
           id="btn-subtab-recurring"
           onClick={() => setActiveSection('recurring')}
-          className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-1 truncate ${
             activeSection === 'recurring' 
-              ? 'bg-slate-900 text-white shadow-sm border border-slate-950' 
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+              ? 'bg-emerald-600 text-white shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] border border-slate-900 font-black' 
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 font-bold'
           }`}
         >
-          <CalendarIcon className="w-3.5 h-3.5" />
-          <span>Recurring Bills Calendar</span>
+          <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Bills</span>
         </button>
       </div>
 
@@ -885,101 +903,100 @@ export default function PersonalFinance({
           SUB-TAB A: OVERVIEW DASHBOARD & WALLETS
           --------------------------------------------- */}
       {activeSection === 'dashboard' && (
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-4 animate-fade-in">
           
           {/* NET WORTH HEADER BANNER */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-stretch">
             {/* Total Balance Card */}
-            <div className="bg-white border-4 border-slate-900 p-6 rounded-3xl shadow-[5px_5px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-between md:col-span-1">
+            <div className="bg-white border-2 border-slate-900 p-3.5 sm:p-4 rounded-2xl shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-between md:col-span-1">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-450 uppercase font-mono tracking-wider">Total Net Assets</span>
-                <span className="p-1.5 bg-emerald-50 border border-emerald-200 text-emerald-650 rounded-lg">
-                  <Wallet className="w-4 h-4" />
+                <span className="text-[10px] font-black text-slate-500 uppercase font-mono tracking-wider">Total Net Assets</span>
+                <span className="p-1 bg-emerald-50 border border-emerald-200 text-emerald-650 rounded-lg">
+                  <Wallet className="w-3.5 h-3.5" />
                 </span>
               </div>
-              <div className="mt-4">
-                <h3 className="text-3xl font-black tracking-tight font-mono text-slate-900">{renderCurrency(totalNetWorthEUR, 'EUR')}</h3>
-                <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase font-mono">Consolidated base currency (EUR)</p>
+              <div className="mt-2">
+                <h3 className="text-2xl font-black tracking-tight font-mono text-slate-900">{renderCurrency(totalNetWorthEUR, 'EUR')}</h3>
+                <p className="text-[8px] font-bold text-slate-400 mt-0.5 uppercase font-mono">Base currency (EUR)</p>
               </div>
               
-              <div className="border-t border-slate-100 pt-3 mt-4 flex items-center justify-between text-[10px] font-mono">
-                <span className="text-slate-500 font-bold">NPR Equivalent</span>
+              <div className="border-t border-slate-100 pt-2 mt-2 flex items-center justify-between text-[10px] font-mono">
+                <span className="text-slate-500 font-bold">NPR Approx</span>
                 <span className="text-slate-800 font-black">{renderCurrency(totalNetWorthEUR * exchangeRates.NPR, 'NPR')}</span>
               </div>
             </div>
 
             {/* Income Expense Monthly Box */}
-            <div className="bg-white border-4 border-slate-900 p-6 rounded-3xl shadow-[5px_5px_0px_0px_rgba(15,23,42,1)] md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+            <div className="bg-white border-2 border-slate-900 p-3.5 sm:p-4 rounded-2xl shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] md:col-span-2 grid grid-cols-3 gap-2 items-center">
               
               {/* Income */}
-              <div className="space-y-1 pl-4 border-l-3 border-emerald-400">
-                <div className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest font-mono">
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Income This Month</span>
+              <div className="space-y-0.5 pl-2 border-l-2 border-emerald-400">
+                <div className="flex items-center gap-1 text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-wider font-mono truncate">
+                  <TrendingUp className="w-3 h-3 text-emerald-500 shrink-0" />
+                  <span className="truncate">Income</span>
                 </div>
-                <h4 className="text-xl font-black font-mono text-slate-900">{renderCurrency(personalStats.income, 'EUR')}</h4>
-                <p className="text-[9px] text-slate-400 font-bold">Earnings, Cashbacks &amp; Salary</p>
+                <h4 className="text-base sm:text-lg font-black font-mono text-slate-900">{renderCurrency(personalStats.income, 'EUR')}</h4>
+                <p className="text-[8px] text-slate-400 font-bold hidden sm:block">Earnings & Salary</p>
               </div>
 
               {/* Expense */}
-              <div className="space-y-1 pl-4 border-l-3 border-rose-400">
-                <div className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest font-mono">
-                  <TrendingDown className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Expense This Month</span>
+              <div className="space-y-0.5 pl-2 border-l-2 border-rose-400">
+                <div className="flex items-center gap-1 text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-wider font-mono truncate">
+                  <TrendingDown className="w-3 h-3 text-rose-500 shrink-0" />
+                  <span className="truncate">Expense</span>
                 </div>
-                <h4 className="text-xl font-black font-mono text-slate-900">{renderCurrency(personalStats.expense, 'EUR')}</h4>
-                <p className="text-[9px] text-slate-400 font-bold">Private spending &amp; sub bills</p>
+                <h4 className="text-base sm:text-lg font-black font-mono text-slate-900">{renderCurrency(personalStats.expense, 'EUR')}</h4>
+                <p className="text-[8px] text-slate-400 font-bold hidden sm:block">Private bills</p>
               </div>
 
               {/* Remittance Nepal */}
-              <div className="space-y-1 pl-4 border-l-3 border-indigo-400">
-                <div className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest font-mono">
-                  <Send className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Nepal Remittance</span>
+              <div className="space-y-0.5 pl-2 border-l-2 border-indigo-400">
+                <div className="flex items-center gap-1 text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-wider font-mono truncate">
+                  <Send className="w-3 h-3 text-indigo-500 shrink-0" />
+                  <span className="truncate">Nepal</span>
                 </div>
-                <h4 className="text-xl font-black font-mono text-slate-900">{renderCurrency(personalStats.remittance, 'EUR')}</h4>
-                <p className="text-[9px] text-slate-400 font-bold">Transfers sent back home 🇳🇵</p>
+                <h4 className="text-base sm:text-lg font-black font-mono text-slate-900">{renderCurrency(personalStats.remittance, 'EUR')}</h4>
+                <p className="text-[8px] text-slate-400 font-bold hidden sm:block">Remittances sent 🇳🇵</p>
               </div>
 
             </div>
           </div>
 
           {/* PERSONAL ACCOUNTS GRID */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b-2 border-slate-100 pb-2">
-              <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight font-display flex items-center gap-1.5">
-                <CreditCard className="w-4 h-4 text-emerald-600" /> Account Portfolios
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight font-display flex items-center gap-1">
+                <CreditCard className="w-3.5 h-3.5 text-emerald-600" /> Account Portfolios
               </h4>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 {accounts.length > 1 && (
                   <button
                     id="btn-transfer-funds-open"
                     onClick={() => setIsTransferOpen(true)}
-                    className="px-3.5 py-1.5 bg-indigo-600 text-white border-2 border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] hover:bg-indigo-700 transition cursor-pointer flex items-center gap-1.5"
+                    className="px-2.5 py-1 bg-indigo-600 text-white border border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] hover:bg-indigo-700 transition cursor-pointer flex items-center gap-1 min-h-[30px]"
                   >
-                    <ArrowLeftRight className="w-3.5 h-3.5 stroke-[3px]" />
-                    <span>Transfer Funds</span>
+                    <ArrowLeftRight className="w-3 h-3 stroke-[3px]" />
+                    <span>Transfer</span>
                   </button>
                 )}
                 
                 <button
                   id="btn-add-account-open"
                   onClick={() => setIsAddAccountOpen(true)}
-                  className="px-3.5 py-1.5 bg-white text-slate-900 border-2 border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-50 transition cursor-pointer flex items-center gap-1"
+                  className="px-2.5 py-1 bg-white text-slate-900 border border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-50 transition cursor-pointer flex items-center gap-1 min-h-[30px]"
                 >
-                  <Plus className="w-3.5 h-3.5 stroke-[3px]" />
-                  <span>Create Wallet</span>
+                  <Plus className="w-3 h-3 stroke-[3px]" />
+                  <span>New Wallet</span>
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
               {accounts.map((acc) => {
                 const isCash = acc.type === 'Cash';
                 const isBank = acc.type === 'Bank Account';
                 const isRevolut = acc.type === 'Revolut';
-                const isWallet = acc.type === 'Digital Wallet';
 
                 return (
                   <div 
@@ -988,64 +1005,59 @@ export default function PersonalFinance({
                       setSelectedStatementAccount(acc);
                       setStatementSearchQuery('');
                     }}
-                    className={`border-4 border-slate-900 p-5 rounded-3xl shadow-[5px_5px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-between hover:translate-y-[-2px] transition-all relative overflow-hidden cursor-pointer group ${
+                    className={`border-2 border-slate-900 p-3 rounded-2xl shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] flex flex-col justify-between hover:translate-y-[-1px] transition-all relative overflow-hidden cursor-pointer group ${
                       isCash ? 'bg-amber-50' : isBank ? 'bg-indigo-50' : isRevolut ? 'bg-rose-50' : 'bg-emerald-50'
                     }`}
                   >
-                    {/* Tiny watermark for premium feel */}
-                    <div className="absolute right-[-10px] bottom-[-10px] text-slate-900/5 font-mono text-4xl font-black select-none pointer-events-none uppercase">
-                      {acc.type.split(' ')[0]}
-                    </div>
-
-                    <div className="flex items-center justify-between mb-4 relative z-10">
-                      <div>
-                        <h5 className="text-xs font-black text-slate-900 truncate max-w-[130px] group-hover:underline">{acc.name}</h5>
+                    <div className="flex items-center justify-between mb-2 relative z-10">
+                      <div className="min-w-0">
+                        <h5 className="text-xs font-black text-slate-900 truncate group-hover:underline">{acc.name}</h5>
                         <span className="text-[8px] font-mono font-black text-slate-400 uppercase tracking-wider">{acc.type}</span>
                       </div>
 
-                      <span className={`p-1.5 rounded-lg border border-slate-900/20 ${
+                      <span className={`p-1 rounded-lg border border-slate-900/20 shrink-0 ${
                         isCash ? 'bg-amber-100 text-amber-700' : isBank ? 'bg-indigo-100 text-indigo-700' : isRevolut ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
                       }`}>
                         {isCash ? (
-                          <Coins className="w-4 h-4" />
+                          <Coins className="w-3.5 h-3.5" />
                         ) : isBank ? (
-                          <CreditCard className="w-4 h-4" />
+                          <CreditCard className="w-3.5 h-3.5" />
                         ) : isRevolut ? (
-                          <Wallet className="w-4 h-4" />
+                          <Wallet className="w-3.5 h-3.5" />
                         ) : (
-                          <Send className="w-4 h-4" />
+                          <Send className="w-3.5 h-3.5" />
                         )}
                       </span>
                     </div>
 
-                    <div className="flex items-end justify-between relative z-10">
+                    <div className="flex items-end justify-between relative z-10 mt-2">
                       <div>
-                        <h3 className="text-2xl font-black font-mono text-slate-900">
+                        <h3 className="text-base sm:text-lg font-black font-mono text-slate-900">
                           {renderCurrency(acc.balance, acc.currency)}
                         </h3>
                         {acc.currency !== 'EUR' && (
-                          <p className="text-[9px] text-slate-500 font-mono mt-0.5">
+                          <p className="text-[8px] text-slate-500 font-mono">
                             ≈ {renderCurrency(convertToEUR(acc.balance, acc.currency), 'EUR')} EUR
                           </p>
                         )}
                       </div>
                       
-                      <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button
                           type="button"
                           onClick={(e) => openEditAccount(e, acc)}
-                          className="p-1.5 bg-white border border-slate-900 rounded-lg text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition"
+                          className="p-1 bg-white border border-slate-900 rounded-md text-slate-700 hover:bg-indigo-50 transition"
                           title="Edit Account"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="w-3 h-3" />
                         </button>
                         <button
                           type="button"
                           onClick={(e) => handleDeleteAccount(e, acc.id, acc.name)}
-                          className="p-1.5 bg-white border border-slate-900 rounded-lg text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition"
+                          className="p-1 bg-white border border-slate-900 rounded-md text-slate-700 hover:bg-rose-50 transition"
                           title="Delete Account"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
@@ -1056,39 +1068,39 @@ export default function PersonalFinance({
           </div>
 
           {/* TWO COLUMN ANALYTICS & WIDGETS SECTION */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
             {/* Category spending bar chart list */}
-            <div className="bg-white border-4 border-slate-900 rounded-[28px] p-5 shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] lg:col-span-2 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <div className="bg-white border-2 border-slate-900 rounded-2xl p-3.5 sm:p-4 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] lg:col-span-2 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <h5 className="text-xs font-black text-slate-900 uppercase tracking-tight font-display flex items-center gap-1.5">
-                  <TrendingDown className="w-4 h-4 text-rose-600" /> Private Spending Distribution
+                  <TrendingDown className="w-3.5 h-3.5 text-rose-600" /> Spending Breakdown
                 </h5>
                 <span className="text-[8px] font-mono font-black text-slate-400 uppercase">This Month</span>
               </div>
 
               {categorySummary.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs font-semibold">
-                  No personal transactions found. Log an expense above to view charts.
+                <div className="py-8 text-center text-slate-400 text-xs font-semibold">
+                  No personal transactions found.
                 </div>
               ) : (
-                <div className="space-y-4.5">
-                  {categorySummary.map((item, idx) => {
+                <div className="space-y-3">
+                  {categorySummary.map((item) => {
                     const maxVal = Math.max(...categorySummary.map(c => c.value), 1);
                     const percentOfMax = (item.value / maxVal) * 100;
                     const totalPersonalSpend = categorySummary.reduce((s, c) => s + c.value, 0);
                     const overallPercent = totalPersonalSpend > 0 ? (item.value / totalPersonalSpend) * 100 : 0;
 
                     return (
-                      <div key={item.name} className="space-y-1.5">
+                      <div key={item.name} className="space-y-1">
                         <div className="flex items-center justify-between text-[10px] font-mono font-black text-slate-900">
-                          <span className="truncate max-w-[200px]">{item.name}</span>
-                          <div className="space-x-1.5 shrink-0">
+                          <span className="truncate max-w-[150px] sm:max-w-[200px]">{item.name}</span>
+                          <div className="space-x-1 shrink-0">
                             <span className="text-slate-700">{renderCurrency(item.value, 'EUR')}</span>
-                            <span className="text-slate-400 bg-slate-100 px-1 rounded text-[9px]">{overallPercent.toFixed(0)}%</span>
+                            <span className="text-slate-400 bg-slate-100 px-1 rounded text-[8px]">{overallPercent.toFixed(0)}%</span>
                           </div>
                         </div>
 
-                        <div className="w-full bg-slate-100 h-3 rounded-lg border border-slate-200 overflow-hidden relative">
+                        <div className="w-full bg-slate-100 h-2.5 rounded-lg border border-slate-200 overflow-hidden relative">
                           <div 
                             className="bg-indigo-500 h-full rounded-lg transition-all duration-500"
                             style={{ width: `${percentOfMax}%` }}
@@ -1102,35 +1114,35 @@ export default function PersonalFinance({
             </div>
 
             {/* NPR Remittance Quick Conversion Helper */}
-            <div className="bg-amber-100 border-4 border-slate-900 rounded-[28px] p-5 shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] space-y-4">
-              <div className="flex items-center justify-between border-b border-amber-200 pb-2">
+            <div className="bg-amber-100 border-2 border-slate-900 rounded-2xl p-3.5 sm:p-4 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] space-y-3">
+              <div className="flex items-center justify-between border-b border-amber-200 pb-1.5">
                 <h5 className="text-xs font-black text-slate-900 uppercase tracking-tight font-display flex items-center gap-1.5">
-                  <Send className="w-4 h-4 text-pink-600" /> Currency Quick Calculator
+                  <Send className="w-3.5 h-3.5 text-pink-600" /> FX Calculator
                 </h5>
                 <span className="text-[8px] font-mono font-black text-amber-700 bg-amber-200 px-1 rounded">Live Rates</span>
               </div>
 
-              <div className="space-y-3 text-xs">
+              <div className="space-y-2.5 text-xs">
                 {/* Amount input */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 block uppercase font-mono">Source Amount</label>
+                <div className="space-y-0.5">
+                  <label className="text-[9px] font-bold text-slate-700 block uppercase font-mono">Source Amount</label>
                   <input
                     type="number"
                     value={convAmount}
                     onChange={(e) => setConvAmount(e.target.value)}
-                    className="w-full p-2.5 bg-white border-2 border-slate-900 rounded-xl font-mono text-sm shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] focus:outline-none"
+                    className="w-full p-2 bg-white border border-slate-900 rounded-xl font-mono text-xs shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] focus:outline-none"
                     placeholder="Enter amount..."
                   />
                 </div>
 
                 {/* Conversion selectors */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-slate-600 block uppercase font-mono">From</label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="space-y-0.5">
+                    <label className="text-[8px] font-bold text-slate-600 block uppercase font-mono">From</label>
                     <select
                       value={convFrom}
                       onChange={(e) => setConvFrom(e.target.value as any)}
-                      className="w-full p-2 bg-white border-2 border-slate-900 rounded-xl font-mono text-[10px] focus:outline-none"
+                      className="w-full p-1.5 bg-white border border-slate-900 rounded-lg font-mono text-[10px] focus:outline-none"
                     >
                       <option value="EUR">EUR (€)</option>
                       <option value="NPR">NPR (रू)</option>
@@ -1138,12 +1150,12 @@ export default function PersonalFinance({
                     </select>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-slate-600 block uppercase font-mono">To</label>
+                  <div className="space-y-0.5">
+                    <label className="text-[8px] font-bold text-slate-600 block uppercase font-mono">To</label>
                     <select
                       value={convTo}
                       onChange={(e) => setConvTo(e.target.value as any)}
-                      className="w-full p-2 bg-white border-2 border-slate-900 rounded-xl font-mono text-[10px] focus:outline-none"
+                      className="w-full p-1.5 bg-white border border-slate-900 rounded-lg font-mono text-[10px] focus:outline-none"
                     >
                       <option value="EUR">EUR (€)</option>
                       <option value="NPR">NPR (रू)</option>
@@ -1153,18 +1165,12 @@ export default function PersonalFinance({
                 </div>
 
                 {/* Conversion display result */}
-                <div className="bg-white border-2 border-slate-900 p-3 rounded-2xl text-center space-y-1 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
-                  <span className="text-[8px] font-black text-slate-400 uppercase font-mono block">Converted Sum</span>
-                  <span className="text-lg font-black text-slate-900 font-mono">
+                <div className="bg-white border border-slate-900 p-2 rounded-xl text-center space-y-0.5 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
+                  <span className="text-[8px] font-black text-slate-400 uppercase font-mono block">Result</span>
+                  <span className="text-base font-black text-slate-900 font-mono">
                     {renderCurrency(computedConversion, convTo)}
                   </span>
                 </div>
-
-                {/* Exchange Rates info */}
-                <p className="text-[9px] text-amber-800 font-mono text-center leading-tight">
-                  Exchange reference:<br />
-                  1 EUR = 142.50 NPR • 1 EUR = 1.09 USD
-                </p>
               </div>
             </div>
           </div>
@@ -1176,20 +1182,20 @@ export default function PersonalFinance({
           SUB-TAB B: PRIVATE TRANSACTION LEDGER
           --------------------------------------------- */}
       {activeSection === 'transactions' && (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-4 animate-fade-in">
           
           {/* SEARCH AND FILTERS */}
-          <div className="bg-white border-4 border-slate-900 p-4 rounded-3xl shadow-[5px_5px_0px_0px_rgba(15,23,42,1)] grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+          <div className="bg-white border-2 border-slate-900 p-3 rounded-2xl shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] grid grid-cols-2 sm:grid-cols-4 gap-2 items-center">
             
             {/* Text Search */}
-            <div className="relative min-w-0 md:col-span-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-450" />
+            <div className="relative min-w-0 col-span-2 sm:col-span-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-450" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border-2 border-slate-900 rounded-xl text-xs font-medium focus:bg-white focus:outline-none"
-                placeholder="Search transactions, notes, tags..."
+                className="w-full pl-8 pr-2 py-1.5 bg-slate-50 border border-slate-900 rounded-xl text-[11px] font-medium focus:bg-white focus:outline-none"
+                placeholder="Search ledger..."
               />
             </div>
 
@@ -1198,12 +1204,12 @@ export default function PersonalFinance({
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as any)}
-                className="w-full px-3 py-2.5 bg-slate-50 border-2 border-slate-900 rounded-xl text-xs font-black uppercase tracking-wider focus:outline-none"
+                className="w-full px-2 py-1.5 bg-slate-50 border border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none"
               >
                 <option value="all">All Types</option>
                 <option value="expense">Expense</option>
                 <option value="income">Income</option>
-                <option value="remittance">Nepal Remittance</option>
+                <option value="remittance">Nepal</option>
               </select>
             </div>
 
@@ -1212,7 +1218,7 @@ export default function PersonalFinance({
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50 border-2 border-slate-900 rounded-xl text-xs font-black uppercase tracking-wider focus:outline-none"
+                className="w-full px-2 py-1.5 bg-slate-50 border border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none"
               >
                 <option value="all">All Categories</option>
                 {PERSONAL_CATEGORIES.map(cat => (
@@ -1226,11 +1232,11 @@ export default function PersonalFinance({
               <select
                 value={filterAccount}
                 onChange={(e) => setFilterAccount(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50 border-2 border-slate-900 rounded-xl text-xs font-black uppercase tracking-wider focus:outline-none"
+                className="w-full px-2 py-1.5 bg-slate-50 border border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-wider focus:outline-none"
               >
                 <option value="all">All Wallets</option>
                 {accounts.map(acc => (
-                  <option key={acc.id} value={acc.id}>{acc.name} ({acc.currency})</option>
+                  <option key={acc.id} value={acc.id}>{acc.name}</option>
                 ))}
               </select>
             </div>
@@ -1238,7 +1244,7 @@ export default function PersonalFinance({
           </div>
 
           {/* PRIVATE TRANSACTIONS TIMELINE */}
-          <div className="bg-white border-4 border-slate-900 rounded-[32px] p-6 shadow-[8px_8px_0px_0px_rgba(15,23,42,1)] space-y-4">
+          <div className="bg-white border-2 border-slate-900 rounded-2xl p-3.5 sm:p-4 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] space-y-3">
             
             {filteredTransactions.length === 0 ? (
               <div className="py-16 text-center text-slate-400 text-xs font-bold bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl">
@@ -1262,10 +1268,10 @@ export default function PersonalFinance({
                   });
 
                   return (
-                    <div key={tx.id} className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-start gap-3.5 min-w-0">
+                    <div key={tx.id} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         {/* Transaction Icon */}
-                        <span className={`p-3 rounded-2xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] shrink-0 mt-0.5 ${
+                        <span className={`p-2 rounded-xl border border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] shrink-0 ${
                           isIncome 
                             ? 'bg-emerald-100 text-emerald-600' 
                             : isRemittance 
@@ -1273,56 +1279,46 @@ export default function PersonalFinance({
                               : 'bg-indigo-100 text-indigo-600'
                         }`}>
                           {isIncome ? (
-                            <TrendingUp className="w-4 h-4 stroke-[2.5]" />
+                            <TrendingUp className="w-3.5 h-3.5 stroke-[2.5]" />
                           ) : isRemittance ? (
-                            <Send className="w-4 h-4 stroke-[2.5]" />
+                            <Send className="w-3.5 h-3.5 stroke-[2.5]" />
                           ) : (
-                            <TrendingDown className="w-4 h-4 stroke-[2.5]" />
+                            <TrendingDown className="w-3.5 h-3.5 stroke-[2.5]" />
                           )}
                         </span>
 
                         {/* Text and tags */}
                         <div className="min-w-0">
-                          <h5 className="text-xs font-black text-slate-900 truncate flex items-center gap-1.5 flex-wrap">
-                            <span>{tx.title}</span>
+                          <h5 className="text-xs font-black text-slate-900 truncate flex items-center gap-1">
+                            <span className="truncate">{tx.title}</span>
                             {tx.receiptUrl && (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[8px] border border-slate-200 font-mono font-bold" title={tx.receiptName || 'Attached receipt'}>
-                                <FileText className="w-2.5 h-2.5" /> Receipt
+                              <span className="inline-flex items-center gap-0.5 px-1 py-0.2 bg-slate-100 text-slate-600 rounded text-[7px] border border-slate-200 font-mono font-bold shrink-0" title={tx.receiptName || 'Attached receipt'}>
+                                <FileText className="w-2 h-2" />
                               </span>
                             )}
                           </h5>
                           
-                          <p className="text-[10px] text-slate-400 font-bold mt-1">
-                            {formattedDate} • via <strong className="text-slate-700">{accName}</strong>
+                          <p className="text-[9px] text-slate-400 font-bold truncate">
+                            {formattedDate} • <strong className="text-slate-700">{accName}</strong>
                           </p>
 
                           {tx.notes && (
-                            <p className="text-[10px] text-slate-500 font-medium italic mt-1 bg-slate-50 p-1.5 rounded-lg border border-slate-150 inline-block max-w-full truncate">
+                            <p className="text-[9px] text-slate-500 font-medium italic truncate max-w-[160px] sm:max-w-xs">
                               {tx.notes}
                             </p>
-                          )}
-
-                          {tx.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {tx.tags.map(tag => (
-                                <span key={tag} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[8px] font-black border border-indigo-100 font-mono uppercase">
-                                  #{tag}
-                                </span>
-                              ))}
-                            </div>
                           )}
                         </div>
                       </div>
 
                       {/* Right amount and deletes */}
-                      <div className="flex items-center gap-4 self-end sm:self-center shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <div className="text-right">
-                          <p className={`text-sm font-black font-mono ${
+                          <p className={`text-xs sm:text-sm font-black font-mono ${
                             isIncome ? 'text-emerald-600' : isRemittance ? 'text-pink-600' : 'text-slate-900'
                           }`}>
                             {isIncome ? '+' : '-'}{renderCurrency(tx.amount, tx.currency)}
                           </p>
-                          <span className="text-[9px] font-black uppercase text-slate-400 bg-slate-50 border border-slate-200 px-1.5 rounded-md">
+                          <span className="text-[8px] font-black uppercase text-slate-400 bg-slate-50 border border-slate-200 px-1 rounded">
                             {tx.category}
                           </span>
                         </div>
@@ -1331,10 +1327,10 @@ export default function PersonalFinance({
                         <button
                           id={`btn-delete-tx-${tx.id}`}
                           onClick={() => handleDeleteTransaction(tx)}
-                          className="p-1.5 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-300 rounded-lg transition"
+                          className="p-1 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 rounded-lg transition"
                           title="Delete transaction entry"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -1352,29 +1348,29 @@ export default function PersonalFinance({
           SUB-TAB C: SAVINGS BENCHMARKS & GOALS
           --------------------------------------------- */}
       {activeSection === 'savings' && (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-4 animate-fade-in">
           
-          <div className="flex items-center justify-between border-b-2 border-slate-100 pb-2">
-            <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight font-display flex items-center gap-1.5">
-              <Goal className="w-5 h-5 text-indigo-600" /> Savings Targets &amp; Milestones
+          <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+            <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight font-display flex items-center gap-1">
+              <Goal className="w-4 h-4 text-indigo-600" /> Savings Targets
             </h4>
             
             <button
               id="btn-add-goal-open"
               onClick={() => setIsAddGoalOpen(true)}
-              className="px-3.5 py-1.5 bg-white text-slate-900 border-2 border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-50 transition cursor-pointer flex items-center gap-1"
+              className="px-2.5 py-1 bg-white text-slate-900 border border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-50 transition cursor-pointer flex items-center gap-1 min-h-[30px]"
             >
-              <Plus className="w-3.5 h-3.5 stroke-[3px]" />
-              <span>New Target Goal</span>
+              <Plus className="w-3 h-3 stroke-[3px]" />
+              <span>New Target</span>
             </button>
           </div>
 
           {savingsGoals.length === 0 ? (
-            <div className="py-16 text-center text-slate-400 text-xs font-bold bg-white border-4 border-slate-900 rounded-3xl shadow-[5px_5px_0px_0px_rgba(15,23,42,1)]">
-              No active savings targets set. Establish a new target to monitor progress!
+            <div className="py-12 text-center text-slate-400 text-xs font-bold bg-white border-2 border-slate-900 rounded-2xl shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)]">
+              No active savings targets set.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {savingsGoals.map((goal) => {
                 const percent = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
                 const isCompleted = goal.currentAmount >= goal.targetAmount;
@@ -1382,64 +1378,64 @@ export default function PersonalFinance({
                 return (
                   <div 
                     key={goal.id} 
-                    className={`bg-white border-4 border-slate-900 p-5 rounded-3xl shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] space-y-4 relative overflow-hidden flex flex-col justify-between ${
+                    className={`bg-white border-2 border-slate-900 p-3.5 rounded-2xl shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] space-y-2.5 relative overflow-hidden flex flex-col justify-between ${
                       isCompleted ? 'bg-emerald-50/50' : ''
                     }`}
                   >
                     <div>
                       {/* Top banner info */}
-                      <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2 mb-2">
-                        <div>
-                          <h5 className="text-xs font-black text-slate-900">{goal.name}</h5>
-                          <span className="text-[8px] font-mono font-bold text-slate-400">Target Deadline: {goal.deadline}</span>
+                      <div className="flex items-start justify-between gap-1.5 border-b border-slate-100 pb-1.5 mb-1.5">
+                        <div className="min-w-0">
+                          <h5 className="text-xs font-black text-slate-900 truncate">{goal.name}</h5>
+                          <span className="text-[8px] font-mono font-bold text-slate-400">Deadline: {goal.deadline}</span>
                         </div>
                         {isCompleted ? (
-                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase rounded border border-emerald-300">
-                            Goal Completed
+                          <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-700 text-[7px] font-black uppercase rounded border border-emerald-300 shrink-0">
+                            Done
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 bg-slate-900 text-white text-[8px] font-black uppercase rounded">
-                            Active Goal
+                          <span className="px-1.5 py-0.2 bg-slate-900 text-white text-[7px] font-black uppercase rounded shrink-0">
+                            Active
                           </span>
                         )}
                       </div>
 
                       {/* Progress Metrics */}
                       <div className="flex items-baseline justify-between font-mono">
-                        <span className="text-xs text-slate-500 font-bold">Progress Status:</span>
+                        <span className="text-[10px] text-slate-500 font-bold">Progress:</span>
                         <div className="text-right">
-                          <span className="text-base font-black text-slate-900">
+                          <span className="text-sm font-black text-slate-900">
                             {renderCurrency(goal.currentAmount, goal.currency)}
                           </span>
-                          <span className="text-slate-400 text-[10px] font-bold">
+                          <span className="text-slate-400 text-[9px] font-bold">
                             {' '}/ {renderCurrency(goal.targetAmount, goal.currency)}
                           </span>
                         </div>
                       </div>
 
                       {/* Progress Bar visualizer */}
-                      <div className="space-y-1 mt-2">
-                        <div className="w-full bg-slate-100 h-3 rounded-full border border-slate-200 overflow-hidden relative">
+                      <div className="space-y-0.5 mt-1">
+                        <div className="w-full bg-slate-100 h-2.5 rounded-full border border-slate-200 overflow-hidden relative">
                           <div 
                             className="bg-indigo-500 h-full rounded-full transition-all duration-500" 
                             style={{ width: `${percent}%` }}
                           ></div>
                         </div>
-                        <div className="flex justify-between text-[9px] font-mono text-slate-400">
-                          <span>Progress ratio</span>
+                        <div className="flex justify-between text-[8px] font-mono text-slate-400">
+                          <span>Ratio</span>
                           <span className="font-bold text-indigo-600">{percent.toFixed(1)}%</span>
                         </div>
                       </div>
 
                       {goal.notes && (
-                        <p className="text-[10px] text-slate-500 italic bg-slate-50 p-2 rounded-xl border mt-3">
+                        <p className="text-[9px] text-slate-500 italic bg-slate-50 p-1.5 rounded-lg border mt-2 truncate">
                           {goal.notes}
                         </p>
                       )}
                     </div>
 
                     {/* Actions panel */}
-                    <div className="flex items-center gap-2 pt-4 border-t border-slate-100 mt-2">
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100 mt-1">
                       <button
                         id={`btn-contribute-goal-${goal.id}`}
                         onClick={() => {
@@ -1448,19 +1444,19 @@ export default function PersonalFinance({
                             setContribAccountId(accounts[0].id);
                           }
                         }}
-                        className="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-2 border-indigo-300 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer flex items-center justify-center gap-1"
+                        className="flex-1 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-300 rounded-xl text-[9px] font-black uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-1 min-h-[30px]"
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add Savings Funds</span>
+                        <Plus className="w-3 h-3" />
+                        <span>Add Funds</span>
                       </button>
 
                       <button
                         id={`btn-delete-goal-${goal.id}`}
                         onClick={() => handleDeleteSavingsGoal(goal.id)}
-                        className="p-2 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-300 rounded-xl transition cursor-pointer"
+                        className="p-1.5 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 rounded-xl transition cursor-pointer"
                         title="Delete goal target"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -1476,90 +1472,89 @@ export default function PersonalFinance({
           SUB-TAB D: RECURRING BILLS CALENDAR / REMINDERS
           --------------------------------------------- */}
       {activeSection === 'recurring' && (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-4 animate-fade-in">
           
-          <div className="flex items-center justify-between border-b-2 border-slate-100 pb-2">
-            <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight font-display flex items-center gap-1.5">
-              <CalendarIcon className="w-5 h-5 text-indigo-600" /> Recurring Bills &amp; Subscription Commitments
+          <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+            <h4 className="text-xs font-black text-slate-900 uppercase tracking-tight font-display flex items-center gap-1">
+              <CalendarIcon className="w-4 h-4 text-indigo-600" /> Recurring Bills &amp; Subs
             </h4>
             
             <button
               id="btn-add-bill-open"
               onClick={() => setIsAddBillOpen(true)}
-              className="px-3.5 py-1.5 bg-white text-slate-900 border-2 border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-50 transition cursor-pointer flex items-center gap-1"
+              className="px-2.5 py-1 bg-white text-slate-900 border border-slate-900 rounded-xl text-[9px] font-black uppercase tracking-wider shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] hover:bg-slate-50 transition cursor-pointer flex items-center gap-1 min-h-[30px]"
             >
-              <Plus className="w-3.5 h-3.5 stroke-[3px]" />
+              <Plus className="w-3 h-3 stroke-[3px]" />
               <span>Create Schedule</span>
             </button>
           </div>
 
           {/* DYNAMIC DUE DATE TIMELINE / CALENDAR view */}
           {recurringBills.length === 0 ? (
-            <div className="py-16 text-center text-slate-400 text-xs font-bold bg-white border-4 border-slate-900 rounded-3xl shadow-[5px_5px_0px_0px_rgba(15,23,42,1)]">
-              No recurring payments configured. Set up automatic schedules for phone, rent, netflix, or utilities.
+            <div className="py-12 text-center text-slate-400 text-xs font-bold bg-white border-2 border-slate-900 rounded-2xl shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)]">
+              No recurring payments configured.
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
               
               {/* Due Date Linear Calendar List */}
-              <div className="bg-white border-4 border-slate-900 rounded-[32px] p-5 shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] lg:col-span-2 space-y-4">
-                <div className="border-b border-slate-100 pb-2 flex items-center justify-between">
+              <div className="bg-white border-2 border-slate-900 rounded-2xl p-3.5 sm:p-4 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] lg:col-span-2 space-y-3">
+                <div className="border-b border-slate-100 pb-1.5 flex items-center justify-between">
                   <h5 className="text-xs font-black text-slate-900 uppercase font-display">Active Schedules</h5>
-                  <span className="text-[8px] font-mono text-slate-400 font-bold">Chronological by Day of Month</span>
+                  <span className="text-[8px] font-mono text-slate-400 font-bold">By Day of Month</span>
                 </div>
 
-                <div className="divide-y divide-slate-150 space-y-2">
+                <div className="divide-y divide-slate-150 space-y-1.5">
                   {recurringBills.map((bill) => {
                     const currentMonthYear = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
                     const isPaidThisMonth = bill.lastPaid && bill.lastPaid.startsWith(currentMonthYear);
 
                     return (
-                      <div key={bill.id} className="pt-3 pb-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-start gap-3">
+                      <div key={bill.id} className="pt-2.5 pb-1 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           {/* Calendar badge style */}
-                          <div className="bg-slate-900 text-amber-400 border-2 border-slate-900 rounded-xl p-2 shrink-0 font-mono text-center w-12 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]">
-                            <span className="text-[8px] uppercase block font-black leading-none mb-1">Day</span>
-                            <span className="text-base font-black leading-none">{bill.dueDate}</span>
+                          <div className="bg-slate-900 text-amber-400 border border-slate-900 rounded-xl p-1 shrink-0 font-mono text-center w-10 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
+                            <span className="text-[7px] uppercase block font-black leading-none mb-0.5">Day</span>
+                            <span className="text-sm font-black leading-none">{bill.dueDate}</span>
                           </div>
 
-                          <div>
-                            <h5 className="text-xs font-black text-slate-900 flex items-center gap-1.5 flex-wrap">
-                              <span>{bill.name}</span>
-                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[7px] font-black uppercase font-mono tracking-wider">
+                          <div className="min-w-0">
+                            <h5 className="text-xs font-black text-slate-900 flex items-center gap-1 truncate">
+                              <span className="truncate">{bill.name}</span>
+                              <span className="px-1 py-0.2 bg-slate-100 text-slate-500 rounded text-[7px] font-black uppercase font-mono shrink-0">
                                 {bill.frequency}
                               </span>
                             </h5>
                             
-                            <p className="text-[9px] text-slate-400 font-bold mt-0.5">
-                              Due every month on the {bill.dueDate}th • {bill.category}
+                            <p className="text-[8px] text-slate-400 font-bold truncate">
+                              Due day {bill.dueDate} • {bill.category}
                             </p>
 
                             {bill.lastPaid ? (
-                              <p className="text-[9px] text-emerald-600 font-bold mt-1 flex items-center gap-0.5">
-                                <Check className="w-3 h-3 text-emerald-500 stroke-[3px]" /> Last Paid: {bill.lastPaid}
+                              <p className="text-[8px] text-emerald-600 font-bold flex items-center gap-0.5">
+                                <Check className="w-2.5 h-2.5 text-emerald-500 stroke-[3px]" /> Paid: {bill.lastPaid}
                               </p>
                             ) : (
-                              <p className="text-[9px] text-amber-600 font-bold mt-1 flex items-center gap-0.5">
-                                <Clock className="w-3 h-3 text-amber-500" /> Never logged via app
+                              <p className="text-[8px] text-amber-600 font-bold flex items-center gap-0.5">
+                                <Clock className="w-2.5 h-2.5 text-amber-500" /> Pending
                               </p>
                             )}
                           </div>
                         </div>
 
                         {/* Bill Amount, Pay Now triggers */}
-                        <div className="flex items-center gap-3.5 self-end sm:self-center shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           <div className="text-right">
-                            <p className="text-sm font-black font-mono text-slate-900">
+                            <p className="text-xs sm:text-sm font-black font-mono text-slate-900">
                               {renderCurrency(bill.amount, bill.currency)}
                             </p>
-                            <span className="text-[8px] font-black uppercase text-slate-400">Recurring bill</span>
                           </div>
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1">
                             {/* Fast payment button */}
                             {isPaidThisMonth ? (
-                              <span className="px-2 py-1 bg-emerald-100 text-emerald-700 border border-emerald-300 text-[8px] font-black uppercase rounded-lg">
-                                Settled Up
+                              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-300 text-[7px] font-black uppercase rounded-lg">
+                                Paid
                               </span>
                             ) : (
                               <select
@@ -1570,9 +1565,9 @@ export default function PersonalFinance({
                                     e.target.value = ''; // Reset selector
                                   }
                                 }}
-                                className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-2 border-indigo-300 rounded-xl text-[8px] font-black uppercase tracking-wider focus:outline-none transition cursor-pointer"
+                                className="px-1.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-300 rounded-xl text-[8px] font-black uppercase tracking-wider focus:outline-none transition cursor-pointer"
                               >
-                                <option value="" disabled>Pay now...</option>
+                                <option value="" disabled>Pay...</option>
                                 {accounts.map(a => (
                                   <option key={a.id} value={a.id}>{a.name}</option>
                                 ))}
@@ -1582,7 +1577,7 @@ export default function PersonalFinance({
                             <button
                               id={`btn-delete-bill-${bill.id}`}
                               onClick={() => handleDeleteRecurringBill(bill.id)}
-                              className="p-1.5 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-300 rounded-xl transition cursor-pointer"
+                              className="p-1 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 rounded-xl transition cursor-pointer"
                               title="Delete recurring payment"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1596,10 +1591,10 @@ export default function PersonalFinance({
               </div>
 
               {/* Upcomming bill notifications */}
-              <div className="bg-white border-4 border-slate-900 rounded-[32px] p-5 shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] space-y-4">
-                <div className="border-b border-slate-100 pb-2">
+              <div className="bg-white border-2 border-slate-900 rounded-2xl p-3.5 sm:p-4 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] space-y-3">
+                <div className="border-b border-slate-100 pb-1.5">
                   <h5 className="text-xs font-black text-slate-900 uppercase font-display flex items-center gap-1">
-                    <Bell className="w-4 h-4 text-pink-500" /> Payment Reminders
+                    <Bell className="w-3.5 h-3.5 text-pink-500" /> Payment Reminders
                   </h5>
                 </div>
 

@@ -237,105 +237,102 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
   const completedCount = items.filter(i => i.completed).length;
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto font-sans">
-      {/* Header Banner - Matched to Neobrutalist Theme */}
-      <div className="bg-white border-2 md:border-3 border-slate-900 rounded-2xl p-5 md:p-6 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] md:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] relative overflow-hidden">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div className="space-y-4 max-w-5xl mx-auto font-sans pb-6">
+      {/* Header Banner - Compact & Clean */}
+      <div className="bg-white border-2 border-slate-900 rounded-2xl p-3.5 sm:p-5 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 text-indigo-900 border-2 border-slate-900 text-xs font-black uppercase tracking-wider mb-2.5 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]">
-              <ShoppingBag className="w-3.5 h-3.5 text-indigo-700 stroke-[2.5px]" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-slate-900 text-[10px] font-black uppercase tracking-wider mb-1 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
+              <ShoppingBag className="w-3 h-3 text-indigo-700 stroke-[2.5px]" />
               Shared Grocery Hub
             </div>
-            <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
               Roommate Shopping List
             </h1>
-            <p className="text-slate-600 text-sm font-semibold mt-1">
-              Add shared household items when running low so either roommate can buy and split them!
-            </p>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             {completedCount > 0 && (
               <button
                 onClick={handleClearCompleted}
-                className="px-3.5 py-2.5 text-xs font-black uppercase tracking-wider text-slate-800 bg-slate-100 hover:bg-rose-100 hover:text-rose-950 rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-2.5 py-1.5 text-[11px] font-black uppercase text-slate-800 bg-slate-100 hover:bg-rose-100 hover:text-rose-950 rounded-xl border border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1"
               >
-                <Trash2 className="w-4 h-4 text-slate-700 stroke-[2.5px]" />
-                Clear Completed ({completedCount})
+                <Trash2 className="w-3.5 h-3.5 text-slate-700 stroke-[2.5px]" />
+                Clear ({completedCount})
               </button>
             )}
 
             <button
               onClick={() => openAddModal()}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer flex items-center gap-2"
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl border border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1.5 min-h-[36px]"
             >
-              <Plus className="w-4 h-4 stroke-[3px]" />
-              Add Shopping Item
+              <Plus className="w-3.5 h-3.5 stroke-[3px]" />
+              Add Item
             </button>
           </div>
         </div>
 
         {/* Stats Summary Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-5 pt-4 border-t-2 border-slate-900">
-          <div className="bg-indigo-50 border-2 border-slate-900 rounded-xl p-3 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
-            <div className="text-slate-700 text-xs font-black uppercase tracking-wider">Needed Items</div>
-            <div className="text-2xl font-black font-mono text-indigo-950 mt-0.5">{neededCount}</div>
+        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-900">
+          <div className="bg-indigo-50/80 border border-slate-900 rounded-xl p-2 sm:p-2.5 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] text-center sm:text-left">
+            <div className="text-slate-600 text-[9px] sm:text-[10px] font-black uppercase tracking-wider">Needed</div>
+            <div className="text-lg sm:text-xl font-black font-mono text-indigo-950 mt-0.5">{neededCount}</div>
           </div>
 
-          <div className={`border-2 border-slate-900 rounded-xl p-3 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] ${
+          <div className={`border border-slate-900 rounded-xl p-2 sm:p-2.5 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] text-center sm:text-left ${
             urgentCount > 0 ? 'bg-amber-100' : 'bg-slate-50'
           }`}>
-            <div className="text-amber-950 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-              <Flame className="w-3.5 h-3.5 text-amber-700 stroke-[2.5px]" />
-              Urgent / Low
+            <div className="text-amber-950 text-[9px] sm:text-[10px] font-black uppercase tracking-wider flex items-center justify-center sm:justify-start gap-1">
+              <Flame className="w-3 h-3 text-amber-700 stroke-[2.5px]" />
+              Urgent
             </div>
-            <div className="text-2xl font-black font-mono text-amber-950 mt-0.5">{urgentCount}</div>
+            <div className="text-lg sm:text-xl font-black font-mono text-amber-950 mt-0.5">{urgentCount}</div>
           </div>
 
-          <div className="bg-emerald-50 border-2 border-slate-900 rounded-xl p-3 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] col-span-2 sm:col-span-1">
-            <div className="text-emerald-950 text-xs font-black uppercase tracking-wider">Bought / Cart</div>
-            <div className="text-2xl font-black font-mono text-emerald-950 mt-0.5">{completedCount}</div>
+          <div className="bg-emerald-50/80 border border-slate-900 rounded-xl p-2 sm:p-2.5 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] text-center sm:text-left">
+            <div className="text-emerald-950 text-[9px] sm:text-[10px] font-black uppercase tracking-wider">Bought</div>
+            <div className="text-lg sm:text-xl font-black font-mono text-emerald-950 mt-0.5">{completedCount}</div>
           </div>
         </div>
       </div>
 
       {/* Quick Add Bar */}
-      <div className="bg-white border-2 border-slate-900 rounded-2xl p-4 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
-        <form onSubmit={handleQuickAdd} className="flex flex-col sm:flex-row gap-3">
+      <div className="bg-white border-2 border-slate-900 rounded-2xl p-3 sm:p-4 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)]">
+        <form onSubmit={handleQuickAdd} className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <input
               type="text"
-              placeholder="Quick add item (e.g. Rice 5kg, Milk, Eggs)..."
+              placeholder="Quick add (e.g. Rice, Milk, Eggs)..."
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
-              className="w-full pl-4 pr-10 py-2.5 text-sm font-bold bg-slate-50 border-2 border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-600 transition"
+              className="w-full pl-3 pr-8 py-2 text-xs font-bold bg-slate-50 border border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-600 transition min-h-[38px]"
             />
             {quickTitle && (
               <button
                 type="button"
                 onClick={() => setQuickTitle('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900"
               >
-                <X className="w-4 h-4 stroke-[2.5px]" />
+                <X className="w-3.5 h-3.5 stroke-[2.5px]" />
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <select
               value={quickCategory}
               onChange={(e) => setQuickCategory(e.target.value as ShoppingCategory)}
-              className="py-2.5 px-3 text-xs font-bold bg-slate-50 border-2 border-slate-900 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-800"
+              className="py-2 px-2 text-[11px] font-bold bg-slate-50 border border-slate-900 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-800 flex-1 sm:flex-initial min-h-[38px]"
             >
               {CATEGORIES.map(c => (
-                <option key={c.name} value={c.name}>{c.name}</option>
+                <option key={c.name} value={c.name}>{c.name.replace('/Delivery', '').replace(' (Coins)', '')}</option>
               ))}
             </select>
 
             <select
               value={quickPriority}
               onChange={(e) => setQuickPriority(e.target.value as ShoppingPriority)}
-              className="py-2.5 px-3 text-xs font-bold bg-slate-50 border-2 border-slate-900 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-800"
+              className="py-2 px-2 text-[11px] font-bold bg-slate-50 border border-slate-900 rounded-xl focus:outline-none focus:border-indigo-600 text-slate-800 shrink-0 min-h-[38px]"
             >
               <option value="Normal">Normal</option>
               <option value="Urgent (Running Low)">Urgent</option>
@@ -345,43 +342,43 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
             <button
               type="submit"
               disabled={!quickTitle.trim()}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-black rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-black rounded-xl border border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap shrink-0 min-h-[38px]"
             >
-              <Plus className="w-4 h-4 stroke-[3px]" />
+              <Plus className="w-3.5 h-3.5 stroke-[3px]" />
               Add
             </button>
           </div>
         </form>
 
         {/* Quick Presets */}
-        <div className="mt-3.5 pt-3 border-t-2 border-slate-900 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5 whitespace-nowrap">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-600 stroke-[2.5px]" />
-            Quick Suggestions:
+        <div className="mt-2.5 pt-2.5 border-t border-slate-200 flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1 whitespace-nowrap shrink-0">
+            <Sparkles className="w-3 h-3 text-indigo-600 stroke-[2.5px]" />
+            Suggestions:
           </span>
           {PRESETS.map((p, idx) => (
             <button
               key={idx}
               onClick={() => handlePresetAdd(p)}
-              className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-indigo-100 text-slate-900 font-bold rounded-lg border-2 border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-none transition-all cursor-pointer whitespace-nowrap flex items-center gap-1"
+              className="px-2 py-0.5 text-[10px] bg-slate-100 hover:bg-indigo-100 text-slate-900 font-bold rounded-lg border border-slate-900 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 shrink-0"
             >
               <span>+ {p.title}</span>
-              {p.quantity && <span className="text-slate-600 font-medium">({p.quantity})</span>}
+              {p.quantity && <span className="text-slate-500 font-normal">({p.quantity})</span>}
             </button>
           ))}
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white border-2 border-slate-900 rounded-2xl p-4 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-white border-2 border-slate-900 rounded-2xl p-3 sm:p-4 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           {/* Status Tabs */}
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border-2 border-slate-900">
+          <div className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-900 text-center">
             <button
               onClick={() => setFilterStatus('needed')}
-              className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+              className={`py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer truncate ${
                 filterStatus === 'needed' 
-                  ? 'bg-indigo-600 text-white border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]' 
+                  ? 'bg-indigo-600 text-white border border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]' 
                   : 'text-slate-700 hover:text-slate-900'
               }`}
             >
@@ -389,20 +386,20 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
             </button>
             <button
               onClick={() => setFilterStatus('urgent')}
-              className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+              className={`py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer truncate flex items-center justify-center gap-0.5 ${
                 filterStatus === 'urgent' 
-                  ? 'bg-amber-400 text-slate-950 border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]' 
+                  ? 'bg-amber-400 text-slate-950 border border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]' 
                   : 'text-amber-800 hover:bg-amber-100'
               }`}
             >
-              <Flame className="w-3.5 h-3.5 stroke-[2.5px]" />
+              <Flame className="w-3 h-3 stroke-[2.5px] hidden sm:inline" />
               Urgent ({urgentCount})
             </button>
             <button
               onClick={() => setFilterStatus('completed')}
-              className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+              className={`py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer truncate ${
                 filterStatus === 'completed' 
-                  ? 'bg-emerald-500 text-white border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]' 
+                  ? 'bg-emerald-500 text-white border border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]' 
                   : 'text-slate-700 hover:text-slate-900'
               }`}
             >
@@ -410,9 +407,9 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
             </button>
             <button
               onClick={() => setFilterStatus('all')}
-              className={`px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+              className={`py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer truncate ${
                 filterStatus === 'all' 
-                  ? 'bg-slate-900 text-white border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]' 
+                  ? 'bg-slate-900 text-white border border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]' 
                   : 'text-slate-700 hover:text-slate-900'
               }`}
             >
@@ -421,29 +418,29 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
           </div>
 
           {/* Search Box */}
-          <div className="relative w-full md:w-64">
-            <Search className="w-4 h-4 text-slate-500 stroke-[2.5px] absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="relative w-full sm:w-56">
+            <Search className="w-3.5 h-3.5 text-slate-400 stroke-[2.5px] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search shopping list..."
+              placeholder="Search groceries..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs font-bold bg-slate-50 border-2 border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-600"
+              className="w-full pl-8 pr-2.5 py-1.5 text-xs font-bold bg-slate-50 border border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-600"
             />
           </div>
         </div>
 
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-0.5 scrollbar-none">
+        <div className="flex items-center gap-1 overflow-x-auto pt-0.5 pb-0.5 scrollbar-none">
           <button
             onClick={() => setSelectedCategory('All')}
-            className={`px-2.5 py-1 text-xs font-black rounded-lg border-2 border-slate-900 transition-all cursor-pointer whitespace-nowrap ${
+            className={`px-2 py-0.5 text-[10px] font-black rounded-lg border border-slate-900 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               selectedCategory === 'All'
-                ? 'bg-slate-900 text-white shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]'
-                : 'bg-slate-50 text-slate-800 hover:bg-slate-100 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                ? 'bg-slate-900 text-white shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                : 'bg-slate-50 text-slate-800 hover:bg-slate-100'
             }`}
           >
-            All Categories
+            All
           </button>
           {CATEGORIES.map((cat) => {
             const CategoryIcon = cat.Icon;
@@ -451,14 +448,14 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
               <button
                 key={cat.name}
                 onClick={() => setSelectedCategory(cat.name)}
-                className={`px-2.5 py-1 text-xs font-black rounded-lg border-2 border-slate-900 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                className={`px-2 py-0.5 text-[10px] font-black rounded-lg border border-slate-900 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 shrink-0 ${
                   selectedCategory === cat.name
-                    ? 'bg-indigo-600 text-white shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]'
-                    : 'bg-slate-50 text-slate-800 hover:bg-slate-100 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                    ? 'bg-indigo-600 text-white shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                    : 'bg-slate-50 text-slate-800 hover:bg-slate-100'
                 }`}
               >
-                <CategoryIcon className="w-3.5 h-3.5 stroke-[2.5px]" />
-                <span>{cat.name}</span>
+                <CategoryIcon className="w-3 h-3 stroke-[2.5px]" />
+                <span>{cat.name.replace(' & Groceries', '').replace(' & Grains', '').replace(' & Refrigerated', '').replace(' & Cleaning', '').replace(' & Beverages', '')}</span>
               </button>
             );
           })}
@@ -467,33 +464,33 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
 
       {/* Shopping List Items Grid */}
       {loading ? (
-        <div className="bg-white border-2 border-slate-900 rounded-2xl p-12 text-center shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div>
-          <p className="text-slate-800 text-sm mt-3 font-bold uppercase tracking-wider">Loading grocery list...</p>
+        <div className="bg-white border-2 border-slate-900 rounded-2xl p-8 text-center shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)]">
+          <div className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-indigo-600 border-t-transparent"></div>
+          <p className="text-slate-800 text-xs mt-2 font-bold uppercase tracking-wider">Loading list...</p>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="bg-white border-2 border-slate-900 rounded-2xl p-12 text-center shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]">
-          <div className="w-16 h-16 bg-indigo-100 text-indigo-800 rounded-2xl border-2 border-slate-900 flex items-center justify-center mx-auto mb-4 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
-            <ShoppingBag className="w-8 h-8 stroke-[2.5px]" />
+        <div className="bg-white border-2 border-slate-900 rounded-2xl p-8 text-center shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)]">
+          <div className="w-12 h-12 bg-indigo-100 text-indigo-800 rounded-xl border border-slate-900 flex items-center justify-center mx-auto mb-3 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]">
+            <ShoppingBag className="w-6 h-6 stroke-[2.5px]" />
           </div>
-          <h3 className="text-lg font-black text-slate-900 uppercase">
-            {filterStatus === 'needed' ? 'No Needed Items!' : 'No items match your filter'}
+          <h3 className="text-base font-black text-slate-900 uppercase">
+            {filterStatus === 'needed' ? 'Pantry is stocked!' : 'No matching items'}
           </h3>
-          <p className="text-slate-600 text-sm font-semibold max-w-md mx-auto mt-1">
+          <p className="text-slate-500 text-xs font-medium max-w-xs mx-auto mt-0.5">
             {filterStatus === 'needed' 
-              ? 'Pantry looks well stocked! Click "Add Shopping Item" or use suggestions above when running low.'
-              : 'Try adjusting your search query or category filters.'}
+              ? 'Click "Add Item" or select suggestions when running low.'
+              : 'Try clearing your search or category filter.'}
           </p>
           <button
             onClick={() => openAddModal()}
-            className="mt-5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer inline-flex items-center gap-2"
+            className="mt-4 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl border border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer inline-flex items-center gap-1.5"
           >
-            <Plus className="w-4 h-4 stroke-[3px]" />
+            <Plus className="w-3.5 h-3.5 stroke-[3px]" />
             Add First Item
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {filteredItems.map((item) => {
             const catInfo = CATEGORIES.find(c => c.name === item.category) || CATEGORIES[5];
             const CategoryIcon = catInfo.Icon;
@@ -502,58 +499,58 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
             return (
               <div
                 key={item.id}
-                className={`border-2 border-slate-900 rounded-2xl p-4 transition-all duration-200 relative group flex flex-col justify-between ${
+                className={`border-2 border-slate-900 rounded-xl p-3 transition-all duration-150 relative flex flex-col justify-between ${
                   item.completed
-                    ? 'bg-slate-100 opacity-80 border-slate-400'
+                    ? 'bg-slate-100/90 border-slate-400'
                     : isUrgent
-                    ? 'bg-amber-50 shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]'
-                    : 'bg-white shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]'
+                    ? 'bg-amber-50 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]'
+                    : 'bg-white shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]'
                 }`}
               >
                 <div>
                   {/* Card Top Row */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2.5 min-w-0">
                       {/* Checkbox */}
                       <button
                         onClick={() => handleToggleComplete(item)}
-                        className="mt-0.5 cursor-pointer transition-transform active:scale-95 flex-shrink-0"
+                        className="mt-0.5 cursor-pointer transition-transform active:scale-90 shrink-0"
                         title={item.completed ? 'Mark as needed' : 'Mark as bought'}
                       >
                         {item.completed ? (
-                          <CheckCircle2 className="w-6 h-6 text-emerald-600 stroke-[2.5px]" />
+                          <CheckCircle2 className="w-5 h-5 text-emerald-600 stroke-[2.5px]" />
                         ) : (
-                          <Circle className="w-6 h-6 text-slate-400 hover:text-indigo-600 stroke-[2.5px]" />
+                          <Circle className="w-5 h-5 text-slate-400 hover:text-indigo-600 stroke-[2.5px]" />
                         )}
                       </button>
 
                       {/* Title & Qty */}
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className={`text-base font-black ${
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className={`text-sm font-black truncate max-w-[180px] sm:max-w-none ${
                             item.completed ? 'line-through text-slate-500' : 'text-slate-900'
                           }`}>
                             {item.title}
                           </h4>
 
                           {item.quantity && (
-                            <span className="px-2 py-0.5 bg-slate-100 text-slate-900 font-bold font-mono text-xs rounded-md border-2 border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
+                            <span className="px-1.5 py-0.2 bg-slate-100 text-slate-900 font-bold font-mono text-[10px] rounded border border-slate-900">
                               {item.quantity}
                             </span>
                           )}
                         </div>
 
                         {/* Category & Priority Badge */}
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-bold rounded-lg border-2 border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] ${catInfo.bgColor} ${catInfo.textColor}`}>
-                            <CategoryIcon className="w-3.5 h-3.5 stroke-[2.5px]" />
-                            <span>{item.category}</span>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 text-[9px] font-bold rounded border border-slate-900 ${catInfo.bgColor} ${catInfo.textColor}`}>
+                            <CategoryIcon className="w-3 h-3 stroke-[2.5px]" />
+                            <span>{item.category.replace(' & Groceries', '').replace(' & Grains', '').replace(' & Refrigerated', '').replace(' & Cleaning', '').replace(' & Beverages', '')}</span>
                           </span>
 
                           {isUrgent && !item.completed && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-black text-amber-950 bg-amber-400 border-2 border-slate-900 rounded-lg shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] animate-pulse">
-                              <AlertTriangle className="w-3.5 h-3.5 text-amber-950 stroke-[2.5px]" />
-                              Running Low
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 text-[9px] font-black text-amber-950 bg-amber-400 border border-slate-900 rounded">
+                              <AlertTriangle className="w-3 h-3 text-amber-950 stroke-[2.5px]" />
+                              Low
                             </span>
                           )}
                         </div>
@@ -561,43 +558,43 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-0.5 shrink-0">
                       <button
                         onClick={() => openAddModal(item)}
-                        className="p-1.5 text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg border-2 border-transparent hover:border-slate-900 transition cursor-pointer"
+                        className="p-1 text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 rounded border border-transparent hover:border-slate-900 transition cursor-pointer"
                         title="Edit Item"
                       >
-                        <Edit2 className="w-4 h-4 stroke-[2.5px]" />
+                        <Edit2 className="w-3.5 h-3.5 stroke-[2.5px]" />
                       </button>
                       <button
                         onClick={() => item.id && handleDelete(item.id)}
-                        className="p-1.5 text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg border-2 border-transparent hover:border-slate-900 transition cursor-pointer"
+                        className="p-1 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded border border-transparent hover:border-slate-900 transition cursor-pointer"
                         title="Delete Item"
                       >
-                        <Trash2 className="w-4 h-4 stroke-[2.5px]" />
+                        <Trash2 className="w-3.5 h-3.5 stroke-[2.5px]" />
                       </button>
                     </div>
                   </div>
 
                   {/* Notes if any */}
                   {item.notes && (
-                    <p className="text-xs text-slate-700 font-medium italic mt-2.5 ml-9 bg-slate-50 p-2.5 rounded-xl border-2 border-slate-900">
+                    <p className="text-[10px] text-slate-600 font-medium italic mt-1.5 ml-7 bg-slate-50/80 px-2 py-1 rounded-lg border border-slate-200">
                       "{item.notes}"
                     </p>
                   )}
                 </div>
 
-                {/* Card Bottom Row: Added by info & Convert to Shared Expense */}
-                <div className="mt-4 pt-3 border-t-2 border-slate-900 flex items-center justify-between text-xs font-bold text-slate-700">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 rounded-lg border-2 border-slate-900 text-slate-900">
-                      <User className="w-3.5 h-3.5 text-indigo-600 stroke-[2.5px]" />
+                {/* Card Bottom Row */}
+                <div className="mt-2.5 pt-2 border-t border-slate-200 flex items-center justify-between text-[10px] font-bold text-slate-700">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 bg-slate-100 rounded border border-slate-900 text-slate-900 text-[9px]">
+                      <User className="w-3 h-3 text-indigo-600 stroke-[2.5px]" />
                       <span>{item.addedBy}</span>
                     </span>
 
                     {item.completed && item.completedBy && (
-                      <span className="inline-flex items-center gap-1 text-emerald-900 font-bold bg-emerald-100 px-2 py-0.5 rounded-lg border-2 border-slate-900">
-                        <UserCheck className="w-3.5 h-3.5 text-emerald-700 stroke-[2.5px]" />
+                      <span className="inline-flex items-center gap-0.5 text-emerald-900 font-bold bg-emerald-100 px-1.5 py-0.2 rounded border border-slate-900 text-[9px]">
+                        <UserCheck className="w-3 h-3 text-emerald-700 stroke-[2.5px]" />
                         Bought by {item.completedBy}
                       </span>
                     )}
@@ -605,18 +602,18 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
 
                   {/* Convert to Shared Expense Button */}
                   {item.convertedToExpenseId ? (
-                    <span className="inline-flex items-center gap-1 text-emerald-950 font-bold bg-emerald-100 px-2.5 py-1 rounded-xl border-2 border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]">
-                      <Receipt className="w-3.5 h-3.5 text-emerald-700 stroke-[2.5px]" />
-                      Expense Split
+                    <span className="inline-flex items-center gap-1 text-emerald-950 font-bold bg-emerald-100 px-2 py-0.5 rounded-lg border border-slate-900 text-[9px]">
+                      <Receipt className="w-3 h-3 text-emerald-700 stroke-[2.5px]" />
+                      Split
                       {item.estimatedCost && ` (€${item.estimatedCost.toFixed(2)})`}
                     </span>
                   ) : (
                     <button
                       onClick={() => openConvertModal(item)}
-                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer flex items-center gap-1 text-xs"
+                      className="px-2 py-0.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-lg border border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1 text-[10px]"
                       title="Mark bought and split as shared expense"
                     >
-                      <DollarSign className="w-3.5 h-3.5 stroke-[2.5px]" />
+                      <DollarSign className="w-3 h-3 stroke-[2.5px]" />
                       Split Expense
                     </button>
                   )}
@@ -629,24 +626,24 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
 
       {/* Add / Edit Item Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border-3 border-slate-900 rounded-2xl max-w-md w-full shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] overflow-hidden animate-in fade-in zoom-in-95 duration-150 font-sans">
-            <div className="bg-slate-900 text-white p-4 border-b-2 border-slate-900 flex items-center justify-between">
-              <h3 className="text-base font-black uppercase tracking-wider flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-indigo-400 stroke-[2.5px]" />
-                {editingItem ? 'Edit Shopping Item' : 'Add New Shopping Item'}
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white border-3 border-slate-900 rounded-2xl max-w-md w-full shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] overflow-hidden animate-in fade-in zoom-in-95 duration-150 font-sans my-auto">
+            <div className="bg-slate-900 text-white p-3.5 border-b-2 border-slate-900 flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-indigo-400 stroke-[2.5px]" />
+                {editingItem ? 'Edit Item' : 'Add Shopping Item'}
               </h3>
               <button
                 onClick={() => setIsAddModalOpen(false)}
                 className="text-slate-300 hover:text-white transition p-1 cursor-pointer"
               >
-                <X className="w-5 h-5 stroke-[2.5px]" />
+                <X className="w-4 h-4 stroke-[2.5px]" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveModal} className="p-5 space-y-4">
+            <form onSubmit={handleSaveModal} className="p-4 space-y-3">
               <div>
-                <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1">
+                <label className="block text-[10px] font-black text-slate-800 uppercase tracking-wider mb-1 font-mono">
                   Item Title *
                 </label>
                 <input
@@ -655,48 +652,48 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
                   placeholder="e.g. Basmati Rice, Olive Oil, Eggs"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm font-bold bg-slate-50 border-2 border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-600"
+                  className="w-full px-3 py-2 text-xs font-bold bg-slate-50 border border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-600"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1">
-                    Quantity / Unit
+                  <label className="block text-[10px] font-black text-slate-800 uppercase tracking-wider mb-1 font-mono">
+                    Quantity
                   </label>
                   <input
                     type="text"
                     placeholder="e.g. 5kg, 2 packs"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm font-bold bg-slate-50 border-2 border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-600"
+                    className="w-full px-3 py-2 text-xs font-bold bg-slate-50 border border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-600"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1">
+                  <label className="block text-[10px] font-black text-slate-800 uppercase tracking-wider mb-1 font-mono">
                     Priority
                   </label>
                   <select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as ShoppingPriority)}
-                    className="w-full px-3.5 py-2.5 text-sm font-bold bg-slate-50 border-2 border-slate-900 rounded-xl focus:outline-none focus:border-indigo-600"
+                    className="w-full px-2.5 py-2 text-xs font-bold bg-slate-50 border border-slate-900 rounded-xl focus:outline-none focus:border-indigo-600"
                   >
                     <option value="Normal">Normal</option>
-                    <option value="Urgent (Running Low)">Urgent (Running Low)</option>
-                    <option value="Low">Low Priority</option>
+                    <option value="Urgent (Running Low)">Urgent</option>
+                    <option value="Low">Low</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1">
+                <label className="block text-[10px] font-black text-slate-800 uppercase tracking-wider mb-1 font-mono">
                   Category
                 </label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as ShoppingCategory)}
-                  className="w-full px-3.5 py-2.5 text-sm font-bold bg-slate-50 border-2 border-slate-900 rounded-xl focus:outline-none focus:border-indigo-600"
+                  className="w-full px-3 py-2 text-xs font-bold bg-slate-50 border border-slate-900 rounded-xl focus:outline-none focus:border-indigo-600"
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c.name} value={c.name}>{c.name}</option>
@@ -705,31 +702,31 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1">
-                  Notes / Brand preference (Optional)
+                <label className="block text-[10px] font-black text-slate-800 uppercase tracking-wider mb-1 font-mono">
+                  Notes / Brand preference
                 </label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Get Tilda brand if on discount, or organic milk"
+                <input
+                  type="text"
+                  placeholder="Brand preference or extra notes..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm font-bold bg-slate-50 border-2 border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-600"
-                ></textarea>
+                  className="w-full px-3 py-2 text-xs font-bold bg-slate-50 border border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-indigo-600"
+                />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3 border-t-2 border-slate-900">
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  className="px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl border border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer min-h-[38px]"
                 >
-                  {editingItem ? 'Save Changes' : 'Add to List'}
+                  {editingItem ? 'Save Changes' : 'Add Item'}
                 </button>
               </div>
             </form>
@@ -739,35 +736,35 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
 
       {/* Convert Item to Shared Expense Modal */}
       {convertingItem && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border-3 border-slate-900 rounded-2xl max-w-md w-full shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] overflow-hidden animate-in fade-in zoom-in-95 duration-150 font-sans">
-            <div className="bg-emerald-700 text-white p-4 border-b-2 border-slate-900 flex items-center justify-between">
-              <h3 className="text-base font-black uppercase tracking-wider flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-emerald-200 stroke-[2.5px]" />
-                Convert Item to Shared Expense
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white border-3 border-slate-900 rounded-2xl max-w-md w-full shadow-[6px_6px_0px_0px_rgba(15,23,42,1)] overflow-hidden animate-in fade-in zoom-in-95 duration-150 font-sans my-auto">
+            <div className="bg-emerald-700 text-white p-3.5 border-b-2 border-slate-900 flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-emerald-200 stroke-[2.5px]" />
+                Split Shared Expense
               </h3>
               <button
                 onClick={() => setConvertingItem(null)}
                 className="text-emerald-100 hover:text-white transition p-1 cursor-pointer"
               >
-                <X className="w-5 h-5 stroke-[2.5px]" />
+                <X className="w-4 h-4 stroke-[2.5px]" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveConversion} className="p-5 space-y-4">
-              <div className="p-3 bg-emerald-50 border-2 border-slate-900 rounded-xl shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]">
-                <div className="text-xs text-emerald-950 font-black uppercase tracking-wider">Selected Item:</div>
-                <div className="text-base font-black text-emerald-950 mt-0.5">
+            <form onSubmit={handleSaveConversion} className="p-4 space-y-3">
+              <div className="p-2.5 bg-emerald-50 border border-slate-900 rounded-xl shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]">
+                <div className="text-[9px] text-emerald-950 font-black uppercase tracking-wider font-mono">Selected Item:</div>
+                <div className="text-sm font-black text-emerald-950 mt-0.5">
                   {convertingItem.title} {convertingItem.quantity ? `(${convertingItem.quantity})` : ''}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1">
+                <label className="block text-[10px] font-black text-slate-800 uppercase tracking-wider mb-1 font-mono">
                   Actual Amount Paid (€) *
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-slate-700 text-base">€</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-slate-700 text-sm">€</span>
                   <input
                     type="number"
                     step="0.01"
@@ -775,29 +772,29 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
                     placeholder="0.00"
                     value={convertAmount}
                     onChange={(e) => setConvertAmount(e.target.value)}
-                    className="w-full pl-8 pr-3.5 py-2.5 text-lg font-black font-mono bg-slate-50 border-2 border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-emerald-600"
+                    className="w-full pl-7 pr-3 py-2 text-base font-black font-mono bg-slate-50 border border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-emerald-600"
                   />
                 </div>
-                <p className="text-xs text-slate-600 font-bold mt-1">This amount will be split 50/50 in the shared roommate ledger.</p>
+                <p className="text-[10px] text-slate-500 font-bold mt-1">Split 50/50 in shared ledger.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1">
+                <label className="block text-[10px] font-black text-slate-800 uppercase tracking-wider mb-1 font-mono">
                   Paid By
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   {(['Ozric', 'Pawan'] as Roommate[]).map((r) => (
                     <button
                       key={r}
                       type="button"
                       onClick={() => setConvertPaidBy(r)}
-                      className={`py-2.5 px-3 rounded-xl font-black text-sm border-2 border-slate-900 flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      className={`py-2 px-3 rounded-xl font-black text-xs border border-slate-900 flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         convertPaidBy === r
-                          ? 'bg-emerald-500 text-white shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]'
-                          : 'bg-slate-50 text-slate-800 hover:bg-slate-100 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]'
+                          ? 'bg-emerald-500 text-white shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]'
+                          : 'bg-slate-50 text-slate-800 hover:bg-slate-100'
                       }`}
                     >
-                      <User className="w-4 h-4 stroke-[2.5px]" />
+                      <User className="w-3.5 h-3.5 stroke-[2.5px]" />
                       <span>{r}</span>
                     </button>
                   ))}
@@ -805,31 +802,31 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ activeRoommate }) =>
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-1">
-                  Expense Notes
+                <label className="block text-[10px] font-black text-slate-800 uppercase tracking-wider mb-1 font-mono">
+                  Notes
                 </label>
                 <input
                   type="text"
                   value={convertNotes}
                   onChange={(e) => setConvertNotes(e.target.value)}
-                  className="w-full px-3.5 py-2 text-sm font-bold bg-slate-50 border-2 border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-emerald-600"
+                  className="w-full px-3 py-1.5 text-xs font-bold bg-slate-50 border border-slate-900 rounded-xl focus:outline-none focus:bg-white focus:border-emerald-600"
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3 border-t-2 border-slate-900">
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setConvertingItem(null)}
-                  className="px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  className="px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs rounded-xl border border-slate-900 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer flex items-center gap-1 min-h-[38px]"
                 >
-                  <Check className="w-4 h-4 stroke-[3px]" />
-                  Log Shared Expense & Complete
+                  <Check className="w-3.5 h-3.5 stroke-[3px]" />
+                  Log Shared Expense
                 </button>
               </div>
             </form>
