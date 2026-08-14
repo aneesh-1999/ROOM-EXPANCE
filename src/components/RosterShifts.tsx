@@ -6,11 +6,12 @@ import {
   Calendar, Clock, Plus, Trash2, Bell, BellRing, Check, CheckCircle2, X, 
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertCircle, Sparkles, Coffee, Moon, Sun, Briefcase, 
   DollarSign, TrendingUp, HelpCircle, CheckSquare, Square, Pencil, FileText, Image, Download,
-  Lock, Eye, EyeOff, User, UserCheck, Sunrise, Sunset, RotateCcw, Building2, Euro, CalendarDays
+  Lock, Eye, EyeOff, User, UserCheck, Sunrise, Sunset, RotateCcw, Building2, Euro, CalendarDays, Share2
 } from 'lucide-react';
 import { showNotification } from '../notificationService';
 import CustomConfirmModal from './CustomConfirmModal';
 import CalendarBook from './CalendarBook';
+import ShareCalendarModal from './ShareCalendarModal';
 
 interface RosterShiftsProps {
   currentUser: Roommate;
@@ -73,6 +74,7 @@ export default function RosterShifts({
 }: RosterShiftsProps) {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [mainMode, setMainMode] = useState<'calendar' | 'roster'>('calendar');
+  const [showShareModal, setShowShareModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -1216,6 +1218,15 @@ export default function RosterShifts({
             </button>
 
             <button
+              onClick={() => setShowShareModal(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-400 hover:bg-emerald-500 text-slate-950 font-black text-xs uppercase border-2 border-slate-900 rounded-xl shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] transition active:translate-x-[0.5px] active:translate-y-[0.5px] cursor-pointer"
+              title="Share shift calendar link with family & friends"
+            >
+              <Share2 className="w-4 h-4 stroke-[2.5]" />
+              <span>Share Link</span>
+            </button>
+
+            <button
               id="btn-open-calendar-modal"
               onClick={() => setShowCalendarModal(true)}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase border-2 border-slate-900 rounded-xl shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] transition active:translate-x-[0.5px] active:translate-y-[0.5px] cursor-pointer"
@@ -2308,6 +2319,15 @@ export default function RosterShifts({
             </div>
           </div>
         </div>
+      )}
+
+      {/* SHARE CALENDAR MODAL */}
+      {showShareModal && (
+        <ShareCalendarModal
+          currentUser={currentUser}
+          userNickname={nicknames[currentUser]}
+          onClose={() => setShowShareModal(false)}
+        />
       )}
 
       {/* CUSTOM CONFIRMATION MODAL FOR DELETIONS */}

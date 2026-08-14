@@ -29,6 +29,7 @@ import BiometricLockScreen from './components/BiometricLockScreen';
 import Logo from './components/Logo';
 import DailyMotivationModal from './components/DailyMotivationModal';
 import { shouldTriggerDailyQuote } from './aiMotivationService';
+import SharedShiftCalendarView from './components/SharedShiftCalendarView';
 
 export default function App() {
   const { unlocked, biometricEnabled, lock } = useAuthStore();
@@ -416,6 +417,28 @@ export default function App() {
       return () => navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
     }
   }, []);
+
+  // Render Shared Public Shift Calendar View if accessed via shared link parameter
+  const sharedShiftsParam = new URLSearchParams(window.location.search).get('sharedShifts') || new URLSearchParams(window.location.search).get('sharedCalendar');
+  if (sharedShiftsParam) {
+    // Map 'Aneesh' to 'Ozric' if passed
+    const targetRoommate: Roommate = (sharedShiftsParam.toLowerCase() === 'aneesh' || sharedShiftsParam.toLowerCase() === 'ozric') 
+      ? 'Ozric' 
+      : (sharedShiftsParam as Roommate);
+
+    return (
+      <SharedShiftCalendarView 
+        targetUser={targetRoommate}
+        onExitSharedView={() => {
+          if (window.history.pushState) {
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.pushState({ path: cleanUrl }, '', cleanUrl);
+          }
+          window.location.reload();
+        }}
+      />
+    );
+  }
 
   // Render Biometric App-Lock Screen BEFORE any other content if enabled and locked
   if (biometricEnabled && !unlocked) {

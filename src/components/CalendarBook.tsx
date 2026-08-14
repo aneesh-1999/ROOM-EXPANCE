@@ -17,10 +17,12 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   CheckCircle2,
-  Euro
+  Euro,
+  Share2
 } from 'lucide-react';
 import { Roommate, Profile, Shift, Expense, RecurringBill, PersonalTransaction } from '../types';
 import { subscribeTransactions } from '../personalFinanceService';
+import ShareCalendarModal from './ShareCalendarModal';
 
 interface CalendarBookProps {
   currentUser: Roommate;
@@ -78,6 +80,7 @@ export const CalendarBook: React.FC<CalendarBookProps> = ({
 }) => {
   // Calendar View Mode: 'grid' (Month Calendar) or 'agenda' (List View)
   const [viewMode, setViewMode] = useState<'grid' | 'agenda'>('grid');
+  const [showShareModal, setShowShareModal] = useState(false);
   
   // Selected Month state
   const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date());
@@ -327,6 +330,15 @@ export const CalendarBook: React.FC<CalendarBookProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="flex-1 sm:flex-none px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] transition cursor-pointer flex items-center justify-center gap-1.5"
+              title="Share shift calendar link with family & friends"
+            >
+              <Share2 className="w-4 h-4 stroke-[2.5]" />
+              <span>Share Link</span>
+            </button>
+
             <button
               onClick={() => onOpenAddShift?.(selectedDateStr)}
               className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-400 hover:bg-emerald-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] transition cursor-pointer flex items-center justify-center gap-1.5"
@@ -784,6 +796,15 @@ export const CalendarBook: React.FC<CalendarBookProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* SHARE CALENDAR MODAL */}
+      {showShareModal && (
+        <ShareCalendarModal
+          currentUser={currentUser}
+          userNickname={nicknames[currentUser]}
+          onClose={() => setShowShareModal(false)}
+        />
       )}
 
     </div>
