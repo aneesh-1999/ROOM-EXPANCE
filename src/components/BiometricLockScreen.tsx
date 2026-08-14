@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../authStore';
 import { Fingerprint, AlertCircle, RefreshCw, Trash2, HeartHandshake, Lock, KeyRound, ShieldCheck } from 'lucide-react';
 import { showNotification } from '../notificationService';
+import Logo from './Logo';
 
 // Utility helper to convert Base64 string back to ArrayBuffer
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
@@ -134,16 +135,11 @@ export default function BiometricLockScreen() {
         
         {/* App Logo Icon */}
         <div className="flex justify-center">
-          <div className="w-20 h-20 bg-indigo-600 rounded-2xl border-3 border-slate-900 flex items-center justify-center text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
-            <HeartHandshake className="w-10 h-10 stroke-[2.5px]" />
-          </div>
+          <Logo size="xl" subtext="Secure" animated />
         </div>
 
         {/* Brand Header */}
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl font-black tracking-tight uppercase text-slate-900">
-            Unlock Roommate Wallet
-          </h2>
+        <div className="text-center space-y-1">
           <p className="text-xs font-bold text-slate-600 max-w-[280px] mx-auto leading-relaxed">
             Verify your Touch ID, Face ID, or fingerprint biometrics to unlock your shared ledger and financial dashboard.
           </p>

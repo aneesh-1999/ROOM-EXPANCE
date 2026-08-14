@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
-import { Roommate, Profile, Shift } from '../types';
+import { Roommate, Profile, Shift, Expense, RecurringBill } from '../types';
 import { addShift, updateShift, deleteShift, subscribeShifts } from '../dbService';
 import { 
   Calendar, Clock, Plus, Trash2, Bell, BellRing, Check, CheckCircle2, X, 
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertCircle, Sparkles, Coffee, Moon, Sun, Briefcase, 
   DollarSign, TrendingUp, HelpCircle, CheckSquare, Square, Pencil, FileText, Image, Download,
-  Lock, Eye, EyeOff, User, UserCheck, Sunrise, Sunset, RotateCcw, Building2, Euro
+  Lock, Eye, EyeOff, User, UserCheck, Sunrise, Sunset, RotateCcw, Building2, Euro, CalendarDays
 } from 'lucide-react';
 import { showNotification } from '../notificationService';
 import CustomConfirmModal from './CustomConfirmModal';
+import CalendarBook from './CalendarBook';
 
 interface RosterShiftsProps {
   currentUser: Roommate;
   nicknames: Record<Roommate, string>;
   profiles: Record<Roommate, Profile>;
+  expenses?: Expense[];
+  recurringBills?: RecurringBill[];
+  onOpenAddExpense?: () => void;
 }
 
 const parseLocalDate = (dateStr: string) => {
@@ -59,8 +63,16 @@ function UserBadge({ user, nickname }: { user: Roommate; nickname?: string }) {
   );
 }
 
-export default function RosterShifts({ currentUser, nicknames, profiles }: RosterShiftsProps) {
+export default function RosterShifts({ 
+  currentUser, 
+  nicknames, 
+  profiles,
+  expenses = [],
+  recurringBills = [],
+  onOpenAddExpense
+}: RosterShiftsProps) {
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [mainMode, setMainMode] = useState<'calendar' | 'roster'>('calendar');
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -1121,6 +1133,50 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
 
   return (
     <div className="space-y-6">
+      {/* TOP VIEW MODE SELECTOR SWITCHER */}
+      <div className="bg-white p-1.5 rounded-2xl border-3 border-slate-900 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] flex items-center gap-2">
+        <button
+          onClick={() => setMainMode('calendar')}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer border-2 ${
+            mainMode === 'calendar'
+              ? 'bg-emerald-400 text-slate-950 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] font-display'
+              : 'bg-transparent text-slate-700 border-transparent hover:bg-slate-100'
+          }`}
+        >
+          <CalendarDays className="w-4 h-4 stroke-[2.5]" />
+          <span>Calendar Book</span>
+        </button>
+
+        <button
+          onClick={() => setMainMode('roster')}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer border-2 ${
+            mainMode === 'roster'
+              ? 'bg-slate-900 text-white border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] font-display'
+              : 'bg-transparent text-slate-700 border-transparent hover:bg-slate-100'
+          }`}
+        >
+          <Briefcase className="w-4 h-4 stroke-[2.5]" />
+          <span>Shifts & Earnings</span>
+        </button>
+      </div>
+
+      {mainMode === 'calendar' ? (
+        <CalendarBook 
+          currentUser={currentUser}
+          nicknames={nicknames}
+          profiles={profiles}
+          shifts={shifts}
+          expenses={expenses}
+          recurringBills={recurringBills}
+          onOpenAddShift={(defaultDate) => {
+            setMainMode('roster');
+            setShowAddForm(true);
+            if (defaultDate) setDate(defaultDate);
+          }}
+          onOpenAddExpense={onOpenAddExpense}
+        />
+      ) : (
+        <>
       {/* CLEAN HEADER BAR */}
       <div className="bg-white border-4 border-slate-900 p-5 rounded-2xl shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -2268,6 +2324,8 @@ export default function RosterShifts({ currentUser, nicknames, profiles }: Roste
         }}
         isDestructive={true}
       />
+      </>
+      )}
     </div>
   );
 }

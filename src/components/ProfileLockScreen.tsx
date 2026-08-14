@@ -5,6 +5,7 @@ import { sendDiscordNotification } from '../discordService';
 import { db } from '../firebase';
 import { collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { ShieldCheck, Lock, Unlock, RefreshCw, Key, AlertCircle, ArrowRight, ShieldAlert, CheckCircle, ArrowLeft } from 'lucide-react';
+import Logo from './Logo';
 
 interface ProfileLockScreenProps {
   selectedUser: Roommate;
@@ -663,6 +664,10 @@ export default function ProfileLockScreen({
         ) : (
           /* STANDARD LOCK / LOCKED STATES */
           <>
+            <div className="flex justify-center mb-2">
+              <Logo size="lg" subtext="Security" animated />
+            </div>
+
             <div className="text-center space-y-3 select-none">
               <div className="relative inline-flex">
                 <span 

@@ -42,21 +42,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   if (activeTab === 'personal') {
     return (
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-3 border-slate-900 shadow-[0px_-4px_0px_0px_rgba(15,23,42,1)] font-sans pb-safe">
-        {/* Top Mini Header Strip for Vault App */}
-        <div className="bg-emerald-100 text-slate-900 text-[9px] font-mono font-bold px-3 py-1 flex items-center justify-between border-b-2 border-slate-900">
-          <span className="flex items-center gap-1 font-black uppercase tracking-wider text-slate-900">
-            <Lock className="w-3 h-3 text-emerald-700 stroke-[3px]" />
-            <span>Private Vault</span>
-          </span>
-          <button 
-            onClick={() => setActiveTab('workspace')}
-            className="text-slate-900 bg-white hover:bg-slate-50 flex items-center gap-1 text-[8px] uppercase font-black tracking-wide px-2 py-0.5 rounded-md border border-slate-900 shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition cursor-pointer"
-          >
-            <ArrowLeft className="w-2.5 h-2.5" />
-            <span>Shared App</span>
-          </button>
-        </div>
-
         {/* Vault App Bottom 5 Navigation Controls */}
         <div className="max-w-md mx-auto px-2 py-1.5 flex items-center justify-between relative bg-white text-slate-900">
           

@@ -10,6 +10,7 @@ import {
   subscribeLoginLogs
 } from '../dbService';
 import CustomConfirmModal from './CustomConfirmModal';
+import Logo from './Logo';
 import { 
   X, 
   Wrench, 
@@ -525,11 +526,9 @@ Warning: Save this securely offline. This code will be burned forever upon usage
             >
               <Menu className="w-4 h-4 stroke-[2.5px] text-slate-900" />
             </button>
-            <span className="p-2.5 bg-amber-250 text-slate-900 rounded-2xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)]">
-              <Wrench className="w-5 h-5 stroke-[2.5px]" />
-            </span>
+            <Logo size="md" subtext="Admin" variant="amber" />
             <div>
-              <h3 className="text-sm sm:text-lg font-black tracking-tight text-slate-900 uppercase">Super Admin Engine</h3>
+              <h3 className="text-sm sm:text-base font-black tracking-tight text-slate-900 uppercase">Super Admin Engine</h3>
               <p className="text-[9px] sm:text-xs text-amber-900 font-bold font-mono">AUTHORIZED OVERRIDE • COMPREHENSIVE CONTROL BOARD</p>
             </div>
           </div>
