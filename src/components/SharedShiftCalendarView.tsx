@@ -174,6 +174,26 @@ export const SharedShiftCalendarView: React.FC<SharedShiftCalendarViewProps> = (
   const phoneNumber = '+35699765895';
   const rawPhone = '35699765895';
 
+  const isDayOff = (shift: { title?: string; startTime?: string; endTime?: string }) => {
+    if (!shift) return false;
+    const titleLower = (shift.title || '').trim().toLowerCase();
+    if (
+      titleLower.includes('day off') ||
+      titleLower === 'off' ||
+      titleLower === 'dayoff' ||
+      titleLower === 'rest day' ||
+      titleLower === 'holiday' ||
+      titleLower === 'vacation' ||
+      titleLower === 'leave'
+    ) {
+      return true;
+    }
+    if (shift.startTime && shift.endTime && shift.startTime === shift.endTime) {
+      return true;
+    }
+    return false;
+  };
+
   // Subscribe to real-time shifts
   useEffect(() => {
     setLoading(true);
@@ -660,6 +680,56 @@ export const SharedShiftCalendarView: React.FC<SharedShiftCalendarViewProps> = (
                 const dateNum = sDate.getDate();
                 const monthName = sDate.toLocaleDateString(lang === 'ne' ? 'ne-NP' : 'en-IE', { month: 'short' });
                 const isToday = shift.date === todayStr;
+                const shiftIsOff = isDayOff(shift);
+
+                if (shiftIsOff) {
+                  return (
+                    <div 
+                      key={shift.id}
+                      className={`border-2.5 border-slate-900 rounded-2xl p-3.5 sm:p-4 transition-all flex items-center justify-between gap-3 shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] ${
+                        isToday ? 'bg-emerald-200 border-emerald-900' : 'bg-emerald-50/80 hover:bg-emerald-100/80'
+                      }`}
+                    >
+                      {/* Date Pillar */}
+                      <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl border-2 border-slate-900 flex flex-col items-center justify-center shrink-0 shadow-[1.5px_1.5px_0px_0px_rgba(15,23,42,1)]">
+                        <span className="text-[10px] font-mono uppercase font-black text-amber-300 leading-none">
+                          {monthName}
+                        </span>
+                        <span className="text-lg font-black font-display text-white leading-tight">
+                          {dateNum}
+                        </span>
+                        <span className="text-[9px] font-mono text-slate-300 leading-none">
+                          {dayName}
+                        </span>
+                      </div>
+
+                      {/* Shift Details */}
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm">🌴</span>
+                          <h4 className="text-sm font-black text-slate-900 truncate">
+                            {shift.title || (lang === 'ne' ? 'बिदा छ (Day Off)' : 'Day Off')}
+                          </h4>
+                          {isToday && (
+                            <span className="text-[9px] font-mono font-black uppercase bg-emerald-400 text-slate-950 px-1.5 py-0.5 rounded border border-slate-900">
+                              {lang === 'ne' ? 'आज' : 'Today'}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-slate-800 flex-wrap">
+                          <span className="bg-emerald-300 text-emerald-950 px-2 py-0.5 rounded-md border border-slate-900 font-black">
+                            🌴 {lang === 'ne' ? 'बिदाको दिन (Day Off)' : 'Day Off / Rest Day'}
+                          </span>
+                          <span className="text-[11px] text-emerald-900 font-bold">
+                            {lang === 'ne' ? 'सम्पर्क गर्ने उपयुक्त समय' : 'Free all day to call or chat'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
                 const hrs = getShiftHours(shift.startTime, shift.endTime, Number(shift.unpaidBreakMinutes ?? 30));
                 const shiftIcon = getShiftIcon(shift.startTime);
 

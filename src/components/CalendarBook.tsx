@@ -23,6 +23,7 @@ import {
 import { Roommate, Profile, Shift, Expense, RecurringBill, PersonalTransaction } from '../types';
 import { subscribeTransactions } from '../personalFinanceService';
 import ShareCalendarModal from './ShareCalendarModal';
+import EmployerTimesheetModal from './EmployerTimesheetModal';
 
 interface CalendarBookProps {
   currentUser: Roommate;
@@ -48,6 +49,7 @@ export interface UnifiedCalendarEvent {
   user?: Roommate;
   subtext?: string;
   isCompleted?: boolean;
+  isDayOff?: boolean;
   originalData?: any;
 }
 
@@ -81,6 +83,7 @@ export const CalendarBook: React.FC<CalendarBookProps> = ({
   // Calendar View Mode: 'grid' (Month Calendar) or 'agenda' (List View)
   const [viewMode, setViewMode] = useState<'grid' | 'agenda'>('grid');
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showEmployerModal, setShowEmployerModal] = useState(false);
   
   // Selected Month state
   const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date());
@@ -133,23 +136,91 @@ export const CalendarBook: React.FC<CalendarBookProps> = ({
   const allEvents = useMemo(() => {
     const events: UnifiedCalendarEvent[] = [];
 
-    // 1. Shifts
+    // 1. Shifts (including Day Off and Sick Leave entries)
+    const checkIsSickLeave = (s: Shift) => {
+      const titleLower = (s.title || '').trim().toLowerCase();
+      return (
+        titleLower.includes('sick') ||
+        titleLower.includes('medical') ||
+        titleLower.includes('illness') ||
+        titleLower.includes('doctor') ||
+        titleLower.includes('hospital') ||
+        titleLower.includes('unwell') ||
+        titleLower === 'sick leave' ||
+        titleLower === 'sickleave'
+      );
+    };
+
+    const checkIsDayOff = (s: Shift) => {
+      if (checkIsSickLeave(s)) return false;
+      const titleLower = (s.title || '').trim().toLowerCase();
+      if (
+        titleLower.includes('day off') || 
+        titleLower === 'off' || 
+        titleLower === 'dayoff' ||
+        titleLower === 'rest day' ||
+        titleLower === 'holiday' ||
+        titleLower === 'vacation' ||
+        titleLower === 'leave'
+      ) {
+        return true;
+      }
+      if (s.startTime && s.endTime && s.startTime === s.endTime) {
+        return true;
+      }
+      return false;
+    };
+
     shifts.forEach(s => {
-      const hours = getShiftDurationHours(s.startTime, s.endTime, Number(s.unpaidBreakMinutes ?? 30));
-      const pay = hours * Number(s.hourlyRate ?? 0);
-      events.push({
-        id: `shift-${s.id}`,
-        date: s.date,
-        type: 'shift',
-        title: s.title || `${s.employerName || 'Work'} Shift`,
-        amount: pay,
-        timeStr: `${s.startTime} - ${s.endTime}`,
-        category: s.employerName || 'Work',
-        user: s.user,
-        subtext: `${hours.toFixed(1)} hrs • €${s.hourlyRate || 0}/hr`,
-        isCompleted: s.completed,
-        originalData: s
-      });
+      const isSick = checkIsSickLeave(s);
+      const isOff = checkIsDayOff(s);
+      if (isSick) {
+        events.push({
+          id: `shift-${s.id}`,
+          date: s.date,
+          type: 'shift',
+          title: s.title || 'Sick Leave',
+          amount: 0,
+          timeStr: 'Sick Leave',
+          category: 'Sick Leave',
+          user: s.user,
+          subtext: '🤒 Sick Leave (Rest & Recovery)',
+          isCompleted: true,
+          originalData: s,
+          isDayOff: true
+        });
+      } else if (isOff) {
+        events.push({
+          id: `shift-${s.id}`,
+          date: s.date,
+          type: 'shift',
+          title: s.title || 'Day Off',
+          amount: 0,
+          timeStr: 'Day Off',
+          category: 'Day Off',
+          user: s.user,
+          subtext: '🌴 Day Off (Rest Day)',
+          isCompleted: true,
+          originalData: s,
+          isDayOff: true
+        });
+      } else {
+        const hours = getShiftDurationHours(s.startTime, s.endTime, Number(s.unpaidBreakMinutes ?? 30));
+        const pay = hours * Number(s.hourlyRate ?? 0);
+        events.push({
+          id: `shift-${s.id}`,
+          date: s.date,
+          type: 'shift',
+          title: s.title || `${s.employerName || 'Work'} Shift`,
+          amount: pay,
+          timeStr: `${s.startTime} - ${s.endTime}`,
+          category: s.employerName || 'Work',
+          user: s.user,
+          subtext: `${hours.toFixed(1)} hrs • €${s.hourlyRate || 0}/hr`,
+          isCompleted: s.completed,
+          originalData: s
+        });
+      }
     });
 
     // 2. Shared Expenses
@@ -282,8 +353,10 @@ export const CalendarBook: React.FC<CalendarBookProps> = ({
       const eDate = parseLocalDate(e.date);
       if (eDate.getFullYear() === year && eDate.getMonth() === month) {
         if (e.type === 'shift') {
-          shiftEarnings += (e.amount || 0);
-          shiftCount++;
+          if (!e.isDayOff) {
+            shiftEarnings += (e.amount || 0);
+            shiftCount++;
+          }
         } else if (e.type === 'income') {
           vaultIncome += Math.abs(e.amount || 0);
         } else if (e.type === 'expense' || e.type === 'bill') {
@@ -329,7 +402,16 @@ export const CalendarBook: React.FC<CalendarBookProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setShowEmployerModal(true)}
+              className="flex-1 sm:flex-none px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] transition cursor-pointer flex items-center justify-center gap-1.5"
+              title="Export official shift timesheet for employer (no wages/rates)"
+            >
+              <Briefcase className="w-4 h-4 stroke-[2.5]" />
+              <span>Timesheet</span>
+            </button>
+
             <button
               onClick={() => setShowShareModal(true)}
               className="flex-1 sm:flex-none px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px] active:translate-y-[0.5px] transition cursor-pointer flex items-center justify-center gap-1.5"
@@ -806,6 +888,16 @@ export const CalendarBook: React.FC<CalendarBookProps> = ({
           onClose={() => setShowShareModal(false)}
         />
       )}
+
+      {/* EMPLOYER TIMESHEET EXPORT MODAL */}
+      <EmployerTimesheetModal
+        isOpen={showEmployerModal}
+        onClose={() => setShowEmployerModal(false)}
+        shifts={shifts}
+        currentUser={currentUser}
+        nicknames={nicknames}
+        profiles={profiles}
+      />
 
     </div>
   );

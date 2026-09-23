@@ -6,12 +6,14 @@ import {
   Calendar, Clock, Plus, Trash2, Bell, BellRing, Check, CheckCircle2, X, 
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertCircle, Sparkles, Coffee, Moon, Sun, Briefcase, 
   DollarSign, TrendingUp, HelpCircle, CheckSquare, Square, Pencil, FileText, Image, Download,
-  Lock, Eye, EyeOff, User, UserCheck, Sunrise, Sunset, RotateCcw, Building2, Euro, CalendarDays, Share2
+  Lock, Eye, EyeOff, User, UserCheck, Sunrise, Sunset, RotateCcw, Building2, Euro, CalendarDays, Share2,
+  HeartPulse
 } from 'lucide-react';
 import { showNotification } from '../notificationService';
 import CustomConfirmModal from './CustomConfirmModal';
 import CalendarBook from './CalendarBook';
 import ShareCalendarModal from './ShareCalendarModal';
+import EmployerTimesheetModal from './EmployerTimesheetModal';
 
 interface RosterShiftsProps {
   currentUser: Roommate;
@@ -64,6 +66,42 @@ function UserBadge({ user, nickname }: { user: Roommate; nickname?: string }) {
   );
 }
 
+export const isSickLeave = (s?: { title?: string; startTime?: string; endTime?: string }) => {
+  if (!s) return false;
+  const titleLower = (s.title || '').trim().toLowerCase();
+  return (
+    titleLower.includes('sick') ||
+    titleLower.includes('medical') ||
+    titleLower.includes('illness') ||
+    titleLower.includes('doctor') ||
+    titleLower.includes('hospital') ||
+    titleLower.includes('unwell') ||
+    titleLower === 'sick leave' ||
+    titleLower === 'sickleave'
+  );
+};
+
+export const isDayOff = (s?: { title?: string; startTime?: string; endTime?: string }) => {
+  if (!s) return false;
+  if (isSickLeave(s)) return false;
+  const titleLower = (s.title || '').trim().toLowerCase();
+  if (
+    titleLower.includes('day off') ||
+    titleLower === 'off' ||
+    titleLower === 'dayoff' ||
+    titleLower === 'rest day' ||
+    titleLower === 'holiday' ||
+    titleLower === 'vacation' ||
+    titleLower === 'leave'
+  ) {
+    return true;
+  }
+  if (s.startTime && s.endTime && s.startTime === s.endTime) {
+    return true;
+  }
+  return false;
+};
+
 export default function RosterShifts({ 
   currentUser, 
   nicknames, 
@@ -75,6 +113,7 @@ export default function RosterShifts({
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [mainMode, setMainMode] = useState<'calendar' | 'roster'>('calendar');
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showEmployerModal, setShowEmployerModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -291,7 +330,7 @@ export default function RosterShifts({
   useEffect(() => {
     setLoading(true);
     const unsubscribeUser = subscribeShifts(currentUser, (userShifts) => {
-      // Sort shifts by date then start time
+      // Keep all shifts including Day Off entries so they appear on the calendar
       const sorted = [...userShifts].sort((a, b) => {
         const dateComp = a.date.localeCompare(b.date);
         if (dateComp !== 0) return dateComp;
@@ -305,7 +344,7 @@ export default function RosterShifts({
   }, [currentUser]);
 
   // Handle shift template selections
-  const applyTemplate = (type: 'morning' | 'midday' | 'evening' | 'night' | 'off' | 'custom') => {
+  const applyTemplate = (type: 'morning' | 'midday' | 'evening' | 'night' | 'off' | 'sick' | 'custom') => {
     if (type === 'morning') {
       setTitle('Morning Shift');
       setStartTime('07:00');
@@ -337,6 +376,13 @@ export default function RosterShifts({
       setHourlyRate('0');
       setUnpaidBreakMinutes(0);
       setReminderActive(false);
+    } else if (type === 'sick') {
+      setTitle('Sick Leave');
+      setStartTime('00:00');
+      setEndTime('00:00');
+      setHourlyRate('0');
+      setUnpaidBreakMinutes(0);
+      setReminderActive(false);
     } else {
       setTitle('');
       setStartTime('09:00');
@@ -357,29 +403,38 @@ export default function RosterShifts({
     setIsSubmitting(true);
 
     try {
+      const cleanTitle = title.trim();
+      const titleLower = cleanTitle.toLowerCase();
+      const isDayOffInput = 
+        titleLower.includes('day off') || 
+        titleLower === 'off' || 
+        titleLower === 'dayoff' ||
+        titleLower === 'rest day' ||
+        (startTime && endTime && startTime === endTime);
+
       const shiftData: Omit<Shift, 'id'> = {
         user: currentUser,
         date,
-        startTime,
-        endTime,
-        title: title.trim(),
+        startTime: isDayOffInput ? '00:00' : startTime,
+        endTime: isDayOffInput ? '00:00' : endTime,
+        title: isDayOffInput ? 'Day Off' : cleanTitle,
         reminderHoursBefore,
-        reminderActive,
+        reminderActive: isDayOffInput ? false : reminderActive,
         notified: false,
         notes: notes.trim(),
-        employerName: employerName.trim(),
-        hourlyRate: parseFloat(hourlyRate) || 0,
-        unpaidBreakMinutes: Number(unpaidBreakMinutes),
-        completed
+        employerName: isDayOffInput ? '' : employerName.trim(),
+        hourlyRate: isDayOffInput ? 0 : (parseFloat(hourlyRate) || 0),
+        unpaidBreakMinutes: isDayOffInput ? 0 : Number(unpaidBreakMinutes),
+        completed: isDayOffInput ? true : completed
       };
 
       if (editingShiftId) {
         await updateShift(editingShiftId, shiftData, currentUser);
-        setSuccessMsg('Shift updated successfully!');
+        setSuccessMsg(isDayOffInput ? 'Marked as Day Off.' : 'Shift updated successfully!');
         setEditingShiftId(null);
       } else {
         await addShift(shiftData);
-        setSuccessMsg('Shift added to roster successfully!');
+        setSuccessMsg(isDayOffInput ? 'Marked as Day Off on calendar!' : 'Shift added to roster successfully!');
       }
 
       // Save the employer rate preset so it is immediately remembered and prefilled next time
@@ -1093,6 +1148,8 @@ export default function RosterShifts({
   // Calculate high quality weekly metrics
   const weekStats = React.useMemo(() => {
     return filteredWeekShifts.reduce((acc, shift) => {
+      if (isDayOff(shift) || isSickLeave(shift)) return acc;
+
       const hours = getShiftDurationHours(shift.startTime, shift.endTime, Number(shift.unpaidBreakMinutes ?? 30));
       const earnings = getShiftEarnings(shift);
       
@@ -1113,6 +1170,8 @@ export default function RosterShifts({
   // Calculate high quality monthly metrics
   const monthStats = React.useMemo(() => {
     return filteredMonthShifts.reduce((acc, shift) => {
+      if (isDayOff(shift) || isSickLeave(shift)) return acc;
+
       const hours = getShiftDurationHours(shift.startTime, shift.endTime, Number(shift.unpaidBreakMinutes ?? 30));
       const earnings = getShiftEarnings(shift);
       
@@ -1224,6 +1283,15 @@ export default function RosterShifts({
             >
               <Share2 className="w-4 h-4 stroke-[2.5]" />
               <span>Share Link</span>
+            </button>
+
+            <button
+              onClick={() => setShowEmployerModal(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase border-2 border-slate-900 rounded-xl shadow-[2.5px_2.5px_0px_0px_rgba(15,23,42,1)] transition active:translate-x-[0.5px] active:translate-y-[0.5px] cursor-pointer"
+              title="Export shift timesheet for employer (no wages/rates)"
+            >
+              <Briefcase className="w-4 h-4 stroke-[2.5]" />
+              <span>For Employer</span>
             </button>
 
             <button
@@ -1419,7 +1487,7 @@ export default function RosterShifts({
               <label className="text-[10px] font-black text-slate-600 uppercase tracking-wider font-mono block">
                 Quick Shift Templates
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
                 <button
                   type="button"
                   onClick={() => applyTemplate('morning')}
@@ -1462,8 +1530,17 @@ export default function RosterShifts({
                 </button>
                 <button
                   type="button"
+                  onClick={() => applyTemplate('sick')}
+                  className="p-2.5 text-xs font-mono font-black bg-rose-50 border-2 border-slate-900 rounded-xl text-rose-950 flex items-center justify-center gap-1.5 hover:bg-rose-100 transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px]"
+                  title="Sick Leave / Medical Leave"
+                >
+                  <HeartPulse className="w-4 h-4 text-rose-600 shrink-0 stroke-[2.5]" />
+                  <span>Sick Leave</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => applyTemplate('custom')}
-                  className="p-2.5 text-xs font-mono font-black bg-white border-2 border-slate-900 rounded-xl text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-100 transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] col-span-2 sm:col-span-1 active:translate-x-[0.5px]"
+                  className="p-2.5 text-xs font-mono font-black bg-white border-2 border-slate-900 rounded-xl text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-100 transition cursor-pointer shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] active:translate-x-[0.5px]"
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-slate-500 shrink-0 stroke-[2.5]" />
                   <span>Reset</span>
@@ -1877,7 +1954,8 @@ export default function RosterShifts({
                             const hours = getShiftDurationHours(shift.startTime, shift.endTime, shift.unpaidBreakMinutes ?? 30);
                             const earnings = getShiftEarnings(shift);
                             const isExpanded = expandedShiftIds[shift.id!] ?? showAllDetails;
-                            const isOffShift = shift.title.toLowerCase().includes('off') || (shift.startTime === shift.endTime);
+                            const isSick = isSickLeave(shift);
+                            const isOffShift = isDayOff(shift);
 
                             return (
                               <div 
@@ -1885,11 +1963,13 @@ export default function RosterShifts({
                                 className={`p-3 rounded-xl border-2 border-slate-900 transition-all ${
                                   shift.completed 
                                     ? 'bg-emerald-50/80 border-emerald-900' 
-                                    : isOffShift
-                                      ? 'bg-teal-50/60 border-teal-900'
-                                      : isMine 
-                                        ? 'bg-amber-50/60' 
-                                        : 'bg-slate-50'
+                                    : isSick
+                                      ? 'bg-rose-50 border-rose-900'
+                                      : isOffShift
+                                        ? 'bg-teal-50/60 border-teal-900'
+                                        : isMine 
+                                          ? 'bg-amber-50/60' 
+                                          : 'bg-slate-50'
                                 }`}
                               >
                                 {/* Primary Clean Row */}
@@ -1898,7 +1978,12 @@ export default function RosterShifts({
                                     <UserAvatarIcon user={shift.user} size="sm" />
                                     <h4 className="font-black text-sm text-slate-950 truncate">{shift.title}</h4>
                                     
-                                    {isOffShift ? (
+                                    {isSick ? (
+                                      <span className="text-xs font-mono font-black text-rose-950 bg-rose-100 border border-rose-400 px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0">
+                                        <HeartPulse className="w-3.5 h-3.5 text-rose-600 stroke-[2.5]" />
+                                        <span>Sick Leave</span>
+                                      </span>
+                                    ) : isOffShift ? (
                                       <span className="text-xs font-mono font-bold text-teal-950 bg-teal-100/90 border border-teal-300 px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0">
                                         <Coffee className="w-3.5 h-3.5 text-teal-700 stroke-[2.5]" />
                                         <span>Day Off</span>
@@ -2213,28 +2298,36 @@ export default function RosterShifts({
                       </p>
                     ) : (
                       getShiftsForDate(selectedCalendarDate).map((shift) => {
-                        const isOff = shift.title.toLowerCase().includes('off') || (shift.startTime === shift.endTime);
+                        const isSick = isSickLeave(shift);
+                        const isOff = isDayOff(shift);
                         return (
                           <div
                             key={shift.id}
                             className={`p-2.5 rounded-xl border-2 flex items-center justify-between text-xs transition ${
-                              isOff
-                                ? 'bg-rose-50/90 border-rose-500 text-rose-950'
-                                : 'bg-white border-slate-900 text-slate-900'
+                              isSick
+                                ? 'bg-rose-50 border-rose-500 text-rose-950'
+                                : isOff
+                                  ? 'bg-amber-50/90 border-amber-500 text-amber-950'
+                                  : 'bg-white border-slate-900 text-slate-900'
                             }`}
                           >
                             <div>
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <p className="font-black text-[11px]">{shift.title}</p>
-                                {isOff && (
+                                {isSick ? (
                                   <span className="text-[9px] font-mono font-black text-white bg-rose-600 border border-rose-900 px-1.5 py-0.2 rounded flex items-center gap-1">
+                                    <HeartPulse className="w-2.5 h-2.5 stroke-[2.5]" />
+                                    SICK LEAVE
+                                  </span>
+                                ) : isOff ? (
+                                  <span className="text-[9px] font-mono font-black text-slate-950 bg-amber-400 border border-slate-900 px-1.5 py-0.2 rounded flex items-center gap-1">
                                     <Coffee className="w-2.5 h-2.5 stroke-[2.5]" />
                                     DAY OFF
                                   </span>
-                                )}
+                                ) : null}
                               </div>
-                              <p className={`text-[9px] font-mono font-bold ${isOff ? 'text-rose-700' : 'text-slate-500'}`}>
-                                {isOff ? 'No work scheduled' : `⏰ ${shift.startTime} – ${shift.endTime}`}
+                              <p className={`text-[9px] font-mono font-bold ${isSick ? 'text-rose-700' : isOff ? 'text-amber-800' : 'text-slate-500'}`}>
+                                {isSick ? 'Rest & medical recovery' : isOff ? 'No work scheduled' : `⏰ ${shift.startTime} – ${shift.endTime}`}
                               </p>
                             </div>
                             <div className="flex items-center gap-1">
@@ -2244,9 +2337,11 @@ export default function RosterShifts({
                                   setShowCalendarModal(false);
                                 }}
                                 className={`px-2 py-1 border rounded-lg text-[9px] font-black font-mono uppercase cursor-pointer ${
-                                  isOff
+                                  isSick
                                     ? 'bg-rose-100 hover:bg-rose-200 text-rose-950 border-rose-400'
-                                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-slate-900'
+                                    : isOff
+                                      ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-amber-400'
+                                      : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-slate-900'
                                 }`}
                               >
                                 Edit
@@ -2329,6 +2424,16 @@ export default function RosterShifts({
           onClose={() => setShowShareModal(false)}
         />
       )}
+
+      {/* EMPLOYER TIMESHEET EXPORT MODAL */}
+      <EmployerTimesheetModal
+        isOpen={showEmployerModal}
+        onClose={() => setShowEmployerModal(false)}
+        shifts={shifts}
+        currentUser={currentUser}
+        nicknames={nicknames}
+        profiles={profiles}
+      />
 
       {/* CUSTOM CONFIRMATION MODAL FOR DELETIONS */}
       <CustomConfirmModal
